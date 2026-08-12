@@ -64,6 +64,11 @@
     box-shadow: 0 0 0 1px #33333a;
     position: relative;
     touch-action: none;
+    /* #paper が z-index:-1 を持つため、ここでスタッキングコンテキストを作って
+       閉じ込める。これがないと負のz-indexが外側まで抜け出し、
+       ドックなど他要素がキャンバス領域に透けて見える(iOS Safariで再現) */
+    z-index: 0;
+    isolation: isolate;
   }
   #stage {
     position: absolute;
@@ -356,6 +361,7 @@
       <button class="icon-btn" id="undo" title="戻す">↺</button>
       <button class="icon-btn" id="redo" title="進む">↻</button>
     </div>
+    <button class="icon-btn" id="zoom-reset-inline" title="表示を100%に戻す">100%</button>
     <button class="icon-btn" id="dock-toggle" title="ツールバーを折りたたむ">▼</button>
   </div>
 
@@ -496,8 +502,17 @@
   let zoom = 1;
   let panX = 0, panY = 0;
 
+  const zoomResetInline = document.getElementById('zoom-reset-inline');
+  zoomResetInline.addEventListener('click', () => {
+    zoom = 1; panX = 0; panY = 0; clampPan(); applyZoom();
+  });
+
   function applyZoom() {
     stage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+    // 等倍以外のときだけ表示して、縮小したまま戻せなくなるのを防ぐ
+    const pct = Math.round(zoom * 100);
+    zoomResetInline.textContent = `${pct}%`;
+    zoomResetInline.style.display = pct === 100 ? 'none' : '';
   }
 
   // キャンバス(#paper/#stage)が完全に画面外へ消えないよう、
@@ -505,7 +520,12 @@
   // 縮小してキャンバス全体が画面に収まる場合は、はみ出させず中央に留める。
   function clampPan() {
     const rect = wrap.getBoundingClientRect();
-    const dispW = rect.width * zoom, dispH = rect.height * zoom;
+    // キャンバスの実CSSサイズを使う。wrapのサイズで代用すると、
+    // 固定サイズプリセット(例:1024x1024)選択時に中央寄せ位置がずれる
+    const base = layers[0] ? layers[0].canvas : null;
+    const baseW = base ? parseFloat(base.style.width) || rect.width : rect.width;
+    const baseH = base ? parseFloat(base.style.height) || rect.height : rect.height;
+    const dispW = baseW * zoom, dispH = baseH * zoom;
     if (dispW <= rect.width) {
       panX = (rect.width - dispW) / 2;
     } else {
@@ -797,6 +817,16 @@
       btn.style.marginRight = '6px';
       btn.style.marginTop = '6px';
       btn.addEventListener('click', () => {
+        // 現在より小さいサイズへ変更すると、はみ出した描画は復元できない
+        const cur = layers[0] ? layers[0].canvas : null;
+        const curW = cur ? Math.round(parseFloat(cur.style.width) || 0) : 0;
+        const curH = cur ? Math.round(parseFloat(cur.style.height) || 0) : 0;
+        const shrinks = preset.width !== null && (preset.width < curW || preset.height < curH);
+        const hasArt = layers.some(l => l.undoStack.length > 0);
+        if (shrinks && hasArt &&
+            !confirm(`キャンバスを小さくすると、はみ出した部分の描画は元に戻せません。\n${curW}×${curH} → ${preset.width}×${preset.height}\n続けますか?`)) {
+          return;
+        }
         selectedCanvasSizeIndex = idx;
         updateCanvasSizeLabel();
         resizeAllCanvases();
@@ -1572,6 +1602,16 @@
       const rect = wrap.getBoundingClientRect();
       cssW = Math.round(rect.width);
       cssH = Math.round(rect.height);
+      // キャンバスを縮めると、はみ出した部分の描画が完全に失われる
+      // (貼り戻しが左上基準の1:1コピーのため)。
+      // ツールバーの開閉や画面回転で表示領域が狭くなっても縮小はせず、
+      // これまでの最大サイズを保持する。狭い分は表示上クリップされるだけで、
+      // 折りたたむ/パンすれば再び見える。
+      const cur = layers[0] ? layers[0].canvas : null;
+      if (cur) {
+        cssW = Math.max(cssW, Math.round(parseFloat(cur.style.width) || 0));
+        cssH = Math.max(cssH, Math.round(parseFloat(cur.style.height) || 0));
+      }
     }
 
     dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1603,6 +1643,10 @@
     // #paperもキャンバスと同じ整数サイズに揃える
     paper.style.width = cssW + 'px';
     paper.style.height = cssH + 'px';
+    // #stageはCSSでは100%だが、固定サイズプリセットではキャンバスの方が
+    // 大きく(または小さく)なるため、実サイズに合わせておく
+    stage.style.width = cssW + 'px';
+    stage.style.height = cssH + 'px';
     clampPan();
     applyZoom();
   }
