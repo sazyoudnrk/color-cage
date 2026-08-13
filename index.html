@@ -2449,10 +2449,47 @@
 
     const actions = document.createElement('div');
     actions.className = 'popup-row';
+
+    // 共有が使える環境でのみ表示する案内(初期は非表示、判定後に出す)
+    const shareNote = document.createElement('div');
+    shareNote.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin:2px 0 8px;display:none;';
+    shareNote.textContent = isIOS
+      ? '共有シートが開きます。「画像を保存」を選ぶとカメラロールに保存されます。'
+      : '共有シートが開きます。保存先はお使いの環境によって異なります。';
+    container.appendChild(shareNote);
+
     const saveOut = document.createElement('button');
     saveOut.className = 'icon-btn pen-btn';
     saveOut.textContent = '💾 保存';
-    saveOut.addEventListener('click', () => exportCanvas(out));
+
+    // 共有シート(iOSなら「画像を保存」でカメラロールに入る)を確実に開くため、
+    // ポップアップを開いた時点で画像を準備しておく。
+    // navigator.share() はタップ直後に呼ばないと拒否されるため、
+    // toBlob() の完了を待ってから呼ぶ形にはできない。
+    let exportFile = null;
+    out.toBlob((blob) => {
+      if (!blob) return;
+      const f = new File([blob], `color-cage-${Date.now()}.png`, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) {
+        exportFile = f;
+        saveOut.textContent = isIOS ? '💾 写真に保存' : '💾 保存・共有';
+        if (shareNote) shareNote.style.display = '';
+      }
+    }, 'image/png');
+
+    saveOut.addEventListener('click', () => {
+      // 準備できていれば共有シートを直接開く(ここで await を挟まない)
+      if (exportFile) {
+        navigator.share({ files: [exportFile], title: 'Color Cage' })
+          .catch((err) => {
+            if (err && err.name === 'AbortError') return; // ユーザーが閉じただけ
+            exportCanvas(out); // 共有が使えない場合は従来の導線へ
+          });
+        return;
+      }
+      // 未対応環境・準備前はダウンロード等の従来処理
+      exportCanvas(out);
+    });
     actions.appendChild(saveOut);
 
     // クリップボードコピーは対応環境でのみ出す(iOS Safariは未対応のことが多い)
