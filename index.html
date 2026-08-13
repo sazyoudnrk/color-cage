@@ -397,7 +397,6 @@
       <button class="icon-btn" id="shuffle" title="パレットを生成">🎲</button>
       <button class="icon-btn" id="fix-btn" title="色相を固定">🔒</button>
       <button class="icon-btn pen-btn" id="default-toggle" title="定番パレット">定番</button>
-      <button class="icon-btn" id="colorwheel-btn" title="色相環で確認">🎨</button>
     </div>
 
     <!-- 配色バー -->
@@ -418,6 +417,7 @@
   <!-- スウォッチ行(常時表示) -->
   <div class="row">
     <div class="swatches" id="swatches"></div>
+    <button class="icon-btn" id="bg-color-btn" title="キャンバス背景色">🎨背景</button>
   </div>
 
   <!-- 必須1行: ペン選択 / 太さ -->
@@ -450,7 +450,8 @@
   const colorTypeSelect = document.getElementById('color-type-select');
   const hueTypeSelect = document.getElementById('hue-type-select');
   const defaultToggleBtn = document.getElementById('default-toggle');
-  const colorwheelBtn = document.getElementById('colorwheel-btn');
+  const bgColorBtn = document.getElementById('bg-color-btn');
+
   const modeLabel = document.getElementById('mode-label');
   const saveBtn = document.getElementById('save');
   const eraserBtn = document.getElementById('eraser');
@@ -472,6 +473,7 @@
   let currentColor = null;
   let currentPaletteColors = [];
   let currentTool = 'pen'; // 'pen' | 'pen2' | 'eraser' | 'bucket' | 'pan'
+  let penToolBeforeEraser = 'pen'; // 消しゴム使用前に選んでいたペンツール
   let drawing = false;
   let lastTime = 0;
   let rawPoint = null;    // 生の指の位置(キャンバス座標系)
@@ -489,6 +491,10 @@
   const PEN_STYLES = {
     pen: { widthMul: 1.0 }, // ペン: くっきり一定の太さの線(不透明度は常に100%)
   };
+
+  // キャンバス背景色
+  let canvasBgColor = '#ffffff';
+  paper.style.backgroundColor = canvasBgColor;
 
   function clampNum(v, min, max) { return Math.min(max, Math.max(min, v)); }
   function snap(v) { return Math.round(v); } // アンチエイリアス低減のため整数pxへスナップ
@@ -568,6 +574,9 @@
   }
 
   for (let i = 0; i < LAYER_COUNT; i++) {
+    // z-index = 配列インデックス。layers[0] が最背面、最後の要素が最前面。
+    // mergeCanvas() の合成順(配列順)と一致させる必要があるため、ここは反転させない。
+    // 「上のレイヤーが上に見えない」問題はレイヤーパネルの並び順で解決する。
     const canvas = makeCanvas(i);
     layers.push({
       canvas,
@@ -640,29 +649,75 @@
 
   // ---- レイヤーポップアップ ----
   function buildLayersPopupContent(container) {
-    layers.forEach((layer, i) => {
+    // 画面上で手前に見えるレイヤーほど上に並べる(一般的なペイントソフトと同じ)。
+    // layers配列は [0]=最背面 なので、表示だけ逆順にする。
+    // 実際の重なり順(z-index)と合成順(mergeCanvas)は配列順のまま変更しない。
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const layer = layers[i];
       const row = document.createElement('div');
       row.className = 'popup-row';
+      row.style.flexDirection = 'column';
+      row.style.gap = '6px';
+      row.style.alignItems = 'flex-start';
+      
+      const headerRow = document.createElement('div');
+      headerRow.style.cssText = 'display:flex;align-items:center;width:100%;gap:6px;';
+      
       const label = document.createElement('button');
       label.className = 'popup-row-label' + (i === activeLayerIndex ? ' active' : '');
       label.textContent = `レイヤー ${i + 1}`;
+      label.style.flex = '1';
       label.addEventListener('click', () => {
         activeLayerIndex = i;
         refreshPopupIfType('layers');
       });
+      
       const eye = document.createElement('button');
       eye.className = 'icon-btn' + (layer.visible ? '' : ' off');
       eye.textContent = layer.visible ? '👁' : '🚫';
       eye.addEventListener('click', (e) => {
         e.stopPropagation();
         layer.visible = !layer.visible;
-        layer.canvas.style.opacity = layer.visible ? '1' : '0';
+        layer.canvas.style.display = layer.visible ? 'block' : 'none';
         refreshPopupIfType('layers');
       });
-      row.appendChild(label);
-      row.appendChild(eye);
+      
+      headerRow.appendChild(label);
+      headerRow.appendChild(eye);
+      row.appendChild(headerRow);
+      
+      // 不透明度スライダー
+      const opacityRow = document.createElement('div');
+      opacityRow.style.cssText = 'display:flex;align-items:center;width:100%;gap:8px;';
+      
+      const opacityLabel = document.createElement('span');
+      opacityLabel.textContent = '不透明度';
+      opacityLabel.style.cssText = 'font-size:12px;color:var(--muted);flex-shrink:0;';
+      
+      const opacitySlider = document.createElement('input');
+      opacitySlider.type = 'range';
+      opacitySlider.min = '0';
+      opacitySlider.max = '100';
+      opacitySlider.value = String(Math.round(parseFloat(layer.canvas.style.opacity || '1') * 100));
+      opacitySlider.style.cssText = 'flex:1;accent-color:var(--ink);';
+      
+      const opacityValue = document.createElement('span');
+      opacityValue.textContent = opacitySlider.value + '%';
+      opacityValue.style.cssText = 'font-size:12px;color:var(--ink);font-weight:600;min-width:35px;text-align:right;';
+      
+      opacitySlider.addEventListener('input', () => {
+        const value = Number(opacitySlider.value);
+        layer.canvas.style.opacity = value / 100;
+        opacityValue.textContent = value + '%';
+      });
+      
+      opacityRow.appendChild(opacityLabel);
+      opacityRow.appendChild(opacitySlider);
+      opacityRow.appendChild(opacityValue);
+      row.appendChild(opacityRow);
+      
       container.appendChild(row);
-    });
+    }
   }
   // タブボタン: レイヤー / ズーム / 詳細設定
   tabLayersBtn.addEventListener('click', () => openPopup('layers', 'レイヤー', buildLayersPopupContent));
@@ -881,6 +936,69 @@
     container.appendChild(btnRow);
   }
 
+  // ---- キャンバス背景色 ポップアップ ----
+
+  function buildBgColorPopupContent(container) {
+    // パレット色から選択
+    const paletteSection = document.createElement('div');
+    paletteSection.style.cssText = 'margin-bottom:12px;';
+    
+    const paletteLabel = document.createElement('div');
+    paletteLabel.textContent = 'パレットから選択';
+    paletteLabel.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:8px;';
+    paletteSection.appendChild(paletteLabel);
+    
+    const paletteRow = document.createElement('div');
+    paletteRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+    currentPaletteColors.forEach(c => {
+      const btn = document.createElement('button');
+      btn.style.cssText = `width:40px;height:40px;border-radius:8px;background:${c};border:2px solid transparent;cursor:pointer;`;
+      if (c.toLowerCase() === canvasBgColor.toLowerCase()) {
+        btn.style.borderColor = 'var(--ink)';
+      }
+      btn.addEventListener('click', () => {
+        canvasBgColor = c;
+        paper.style.backgroundColor = c;
+        refreshPopupIfType('bgColor');
+      });
+      paletteRow.appendChild(btn);
+    });
+    paletteSection.appendChild(paletteRow);
+    container.appendChild(paletteSection);
+    
+    // カラーピッカーで自由選択
+    const pickerSection = document.createElement('div');
+    pickerSection.style.cssText = 'margin-top:12px;';
+    
+    const pickerLabel = document.createElement('div');
+    pickerLabel.textContent = 'カラーピッカーで選択';
+    pickerLabel.style.cssText = 'font-size:13px;font-weight:600;margin-bottom:8px;';
+    pickerSection.appendChild(pickerLabel);
+    
+    const pickerRow = document.createElement('div');
+    pickerRow.style.cssText = 'display:flex;gap:10px;align-items:center;';
+    
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = canvasBgColor;
+    picker.style.cssText = 'width:60px;height:40px;border:none;border-radius:8px;cursor:pointer;';
+    
+    const hexLabel = document.createElement('span');
+    hexLabel.textContent = canvasBgColor.toUpperCase();
+    hexLabel.style.cssText = 'font-size:12px;font-weight:600;color:var(--ink);';
+    
+    picker.addEventListener('input', () => {
+      canvasBgColor = picker.value;
+      paper.style.backgroundColor = picker.value;
+      hexLabel.textContent = picker.value.toUpperCase();
+    });
+    
+    pickerRow.appendChild(picker);
+    pickerRow.appendChild(hexLabel);
+    pickerSection.appendChild(pickerRow);
+    container.appendChild(pickerSection);
+  }
+
   // ---- 一部固定 設定ポップアップ ----
   function buildFixPopupContent(container) {
     const note = document.createElement('div');
@@ -1082,7 +1200,7 @@
     drawHueWheel(wheelCanvas, currentPaletteColors, currentColor);
     drawSLGradient(slCanvas, hsl.h, hsl.s, hsl.l);
   }
-  colorwheelBtn.addEventListener('click', () => openPopup('colorwheel', '色相環 / 選択色', buildColorWheelPopupContent));
+
   document.getElementById('fix-btn')
     .addEventListener('click', () => openPopup('fix', '色相を固定', buildFixPopupContent));
 
@@ -1530,7 +1648,7 @@
       container.appendChild(row);
     });
   }
-  schemeConfigBtn.addEventListener('click', () => openPopup('scheme', 'おすすめ配色の指定', buildSchemeConfigContent));
+  schemeConfigBtn.addEventListener('click', () => openPopup('scheme', '配色案の指定', buildSchemeConfigContent));
 
   let useDefaultPalette = false;
 
@@ -1564,6 +1682,10 @@
   // ---------- ツール切り替え ----------
   function setTool(tool) {
     currentTool = tool;
+    // ペンツール選択時に、消しゴム使用前のペンツール種類を記憶
+    if (tool === 'pen' || tool === 'pen2') {
+      penToolBeforeEraser = tool;
+    }
     penBtns.forEach(b => b.classList.toggle('active', b.dataset.pen === tool));
     eraserBtn.classList.toggle('active', tool === 'eraser');
     bucketBtn.classList.toggle('active', tool === 'bucket');
@@ -1730,32 +1852,57 @@
       data[idx + 3] = fillColor[3];
     }
 
+    // 塗る画素をマスクに記録する(この時点ではまだピクセルを書き換えない)。
+    // 走査線(スキャンライン)方式: 横方向は一括で処理し、スタックには
+    // 行の区間だけを積む。1画素ずつ配列を積む方式に比べ生成する
+    // オブジェクト数が桁違いに少なく、実機でも実用速度になる。
+    const mask = new Uint8Array(w * h);
     const stack = [[px, py]];
     while (stack.length) {
       const [cx, cy] = stack.pop();
       const rowIdx = cy * w;
-      if (!matches((rowIdx + cx) * 4)) continue;
+      if (mask[rowIdx + cx] || !matches((rowIdx + cx) * 4)) continue;
 
       let xl = cx;
-      while (xl > 0 && matches((rowIdx + xl - 1) * 4)) xl--;
+      while (xl > 0 && !mask[rowIdx + xl - 1] && matches((rowIdx + xl - 1) * 4)) xl--;
       let xr = cx;
-      while (xr < w - 1 && matches((rowIdx + xr + 1) * 4)) xr++;
+      while (xr < w - 1 && !mask[rowIdx + xr + 1] && matches((rowIdx + xr + 1) * 4)) xr++;
 
-      for (let i = xl; i <= xr; i++) setPixel((rowIdx + i) * 4);
+      for (let i = xl; i <= xr; i++) mask[rowIdx + i] = 1;
 
       [cy - 1, cy + 1].forEach(ny => {
         if (ny < 0 || ny >= h) return;
         const nRowIdx = ny * w;
         let i = xl;
         while (i <= xr) {
-          if (matches((nRowIdx + i) * 4)) {
+          if (!mask[nRowIdx + i] && matches((nRowIdx + i) * 4)) {
             stack.push([i, ny]);
-            while (i <= xr && matches((nRowIdx + i) * 4)) i++;
+            while (i <= xr && !mask[nRowIdx + i] && matches((nRowIdx + i) * 4)) i++;
           } else {
             i++;
           }
         }
       });
+    }
+
+    // 塗り範囲を1px膨張させてから書き込む。
+    // 線画の境界はアンチエイリアスで半端な色になっており、そのまま塗ると
+    // 不透明度100%でも輪郭に元の色が残って見える。1px重ねてこれを隠す。
+    // 元のマスクを読みながら書き込むと膨張が連鎖するため、コピーを参照する。
+    const src = mask.slice();
+    for (let y = 0; y < h; y++) {
+      const rowIdx = y * w;
+      for (let x = 0; x < w; x++) {
+        const idx = rowIdx + x;
+        if (src[idx]) { setPixel(idx * 4); continue; }
+        // 上下左右のいずれかが塗り範囲なら、この画素も塗る
+        if ((x > 0 && src[idx - 1]) ||
+            (x < w - 1 && src[idx + 1]) ||
+            (y > 0 && src[idx - w]) ||
+            (y < h - 1 && src[idx + w])) {
+          setPixel(idx * 4);
+        }
+      }
     }
 
     layer.ctx.putImageData(imgData, 0, 0);
@@ -1805,9 +1952,16 @@
     if (currentTool === 'eraser') {
       layer.ctx.save();
       layer.ctx.globalCompositeOperation = 'destination-out';
-      layer.ctx.beginPath();
-      layer.ctx.arc(snap(p.x), snap(p.y), (Number(sizeSlider.value) * 1.4) / 2, 0, Math.PI * 2);
-      layer.ctx.fill();
+      const size = Number(sizeSlider.value);
+      if (penToolBeforeEraser === 'pen2') {
+        // ペン2選択時は四角い消しゴム
+        layer.ctx.fillRect(snap(p.x - size / 2), snap(p.y - size / 2), size, size);
+      } else {
+        // ペン選択時は円形の消しゴム
+        layer.ctx.beginPath();
+        layer.ctx.arc(snap(p.x), snap(p.y), (size * 1.4) / 2, 0, Math.PI * 2);
+        layer.ctx.fill();
+      }
       layer.ctx.restore();
     } else if (currentTool === 'pen2') {
       // 正方形ドット
@@ -1863,11 +2017,26 @@
     if (currentTool === 'eraser') {
       layer.ctx.save();
       layer.ctx.globalCompositeOperation = 'destination-out';
-      layer.ctx.lineWidth = Number(sizeSlider.value) * 1.4;
-      layer.ctx.beginPath();
-      layer.ctx.moveTo(fromX, fromY);
-      layer.ctx.lineTo(toX, toY);
-      layer.ctx.stroke();
+      const size = Number(sizeSlider.value);
+      if (penToolBeforeEraser === 'pen2') {
+        // ペン2選択時は四角い消しゴム
+        const dx = toX - fromX, dy = toY - fromY;
+        const dist = Math.hypot(dx, dy);
+        const step = Math.max(1, Math.ceil(size / 2));
+        for (let i = 0; i <= dist; i += step) {
+          const t = dist > 0 ? i / dist : 0;
+          const x = fromX + dx * t;
+          const y = fromY + dy * t;
+          layer.ctx.fillRect(snap(x - size / 2), snap(y - size / 2), size, size);
+        }
+      } else {
+        // ペン選択時は円形の消しゴム
+        layer.ctx.lineWidth = size * 1.4;
+        layer.ctx.beginPath();
+        layer.ctx.moveTo(fromX, fromY);
+        layer.ctx.lineTo(toX, toY);
+        layer.ctx.stroke();
+      }
       layer.ctx.restore();
     } else if (currentTool === 'pen2') {
       // 正方形ドット: 始点から終点への直線に沿ってドットを敷く
@@ -2005,11 +2174,18 @@
     out.height = layers[0].canvas.height;
     const octx = out.getContext('2d');
     octx.imageSmoothingEnabled = false;
-    octx.fillStyle = '#ffffff';
+    // 画面の #paper と同じ背景色で塗る(白固定にすると背景色の設定が出力に反映されない)
+    octx.fillStyle = canvasBgColor;
     octx.fillRect(0, 0, out.width, out.height);
+    // 合成順は配列順(=z-index順)。画面の重なりと一致させる。
     layers.forEach(layer => {
-      if (layer.visible) octx.drawImage(layer.canvas, 0, 0);
+      if (!layer.visible) return;
+      // レイヤーごとの不透明度も反映する
+      const op = parseFloat(layer.canvas.style.opacity);
+      octx.globalAlpha = isNaN(op) ? 1 : op;
+      octx.drawImage(layer.canvas, 0, 0);
     });
+    octx.globalAlpha = 1;
     return out;
   }
 
@@ -2021,6 +2197,7 @@
   // そのまま描画する。別ロジックを持つと画面と出力で色が食い違うため。
   const EXPORT_W = 1080;
   let exportMode = 'both'; // 'palette' | 'image' | 'both'
+  let exportPaletteSize = 'compact'; // 'standard' | 'compact'
 
   function colorToHex(c) {
     if (c.startsWith('#')) return c.toUpperCase();
@@ -2034,28 +2211,39 @@
   }
 
   // パレット部分のレイアウト寸法を先に算出する(描画と高さ計算で同じ値を使う)
-  function paletteLayout(width, colors, schemes) {
-    const pad = 48, gap = 24;
+  function paletteLayout(width, colors, schemes, compact = false) {
+    const pad = compact ? 30 : 48;
+    const gap = compact ? 16 : 24;
     const inner = width - pad * 2;
-    // スウォッチは「色を見る」ことが主目的なので大きめを確保する
-    let cols = Math.max(1, Math.floor((inner + gap) / (200 + gap)));
+    // スウォッチは「色を見る」ことが主目的なので大きめを確保する。
+    // コンパクトは絵に添える資料なので、1/3程度まで小さくする。
+    const maxSw = compact ? 90 : 280;
+    const minSw = compact ? 100 : 200;
+    let cols = Math.max(1, Math.floor((inner + gap) / (minSw + gap)));
     cols = Math.min(cols, Math.max(1, colors.length));
     // 列数が少ないと1枚が巨大になるので上限を設ける(1色でも間延びさせない)
-    const sw = Math.min(280, Math.floor((inner - gap * (cols - 1)) / cols));
+    const sw = Math.min(maxSw, Math.floor((inner - gap * (cols - 1)) / cols));
     const rows = Math.ceil(colors.length / cols);
-    const cellH = sw + 48; // スウォッチ + 直下のHEXコード
-    const titleH = 76;
-    const barH = 92, capH = 36, legendH = 54, blockGap = 30;
+    const cellH = sw + (compact ? 34 : 48); // スウォッチ + 直下のHEXコード
+    const titleH = compact ? 44 : 76;
+    const barH = compact ? 44 : 92;
+    const capH = compact ? 28 : 36;
+    const legendH = 54;
+    const blockGap = compact ? 16 : 30;
+    const barGap = compact ? 8 : 14;
+    // コンパクトでは凡例(役割+HEX)を描かないので、その分は高さに含めない。
+    // ここを含めたままにすると末尾に空白が残り、狙った縮小率にならない。
+    const schemeBlockH = capH + barH + barGap + (compact ? 0 : legendH) + blockGap;
     const schemesH = schemes.length
-      ? 46 + schemes.length * (capH + barH + 14 + legendH + blockGap)
+      ? (compact ? 20 : 46) + schemes.length * schemeBlockH
       : 0;
     const height = pad + titleH + rows * cellH + (rows - 1) * gap + schemesH + pad;
-    return { pad, gap, cols, sw, rows, cellH, titleH, barH, capH, legendH, blockGap, height };
+    return { pad, gap, cols, sw, rows, cellH, titleH, barH, capH, legendH, blockGap, barGap, height };
   }
 
   // パレット資料を ctx の (0, top) から描画し、消費した高さを返す
-  function drawPaletteSection(ctx, width, top, colors, schemes) {
-    const L = paletteLayout(width, colors, schemes);
+  function drawPaletteSection(ctx, width, top, colors, schemes, compact = false) {
+    const L = paletteLayout(width, colors, schemes, compact);
     let y = top;
 
     ctx.fillStyle = '#ffffff';
@@ -2063,7 +2251,7 @@
 
     y += L.pad;
     ctx.fillStyle = '#111111';
-    ctx.font = 'bold 34px system-ui, sans-serif';
+    ctx.font = `bold ${compact ? 22 : 34}px system-ui, sans-serif`;
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     ctx.fillText('COLOR PALETTE', L.pad, y);
@@ -2074,28 +2262,30 @@
       const col = i % L.cols, row = Math.floor(i / L.cols);
       const x = L.pad + col * (L.sw + L.gap);
       const cy = y + row * (L.cellH + L.gap);
+      const r = compact ? 10 : 16;
       ctx.fillStyle = c;
-      roundRect(ctx, x, cy, L.sw, L.sw, 16);
+      roundRect(ctx, x, cy, L.sw, L.sw, r);
       ctx.fill();
       ctx.strokeStyle = '#00000018';
       ctx.lineWidth = 2;
-      roundRect(ctx, x, cy, L.sw, L.sw, 16);
+      roundRect(ctx, x, cy, L.sw, L.sw, r);
       ctx.stroke();
+      // HEXコードはコンパクトでも残す(色を特定できる唯一の情報のため)
       ctx.fillStyle = '#222222';
-      ctx.font = 'bold 26px ui-monospace, monospace';
+      ctx.font = `bold ${compact ? 18 : 26}px ui-monospace, monospace`;
       ctx.textAlign = 'center';
-      ctx.fillText(colorToHex(c), x + L.sw / 2, cy + L.sw + 12);
+      ctx.fillText(colorToHex(c), x + L.sw / 2, cy + L.sw + (compact ? 8 : 12));
     });
     y += L.rows * L.cellH + (L.rows - 1) * L.gap;
 
     // おすすめ配色(60:30:10バー)
     if (schemes.length) {
-      y += 46;
+      y += compact ? 20 : 46;
       schemes.forEach((scheme, idx) => {
         ctx.fillStyle = '#111111';
-        ctx.font = 'bold 26px system-ui, sans-serif';
+        ctx.font = `bold ${compact ? 19 : 26}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText(`おすすめ配色 ${idx + 1}`, L.pad, y);
+        ctx.fillText(`配色案 ${idx + 1}`, L.pad, y);
         y += L.capH;
 
         let x = L.pad;
@@ -2104,13 +2294,16 @@
           const segW = Math.round(barW * scheme.ratios[i] / 100);
           ctx.fillStyle = c;
           ctx.fillRect(x, y, segW, L.barH);
-          // バー内は比率だけを大きく出す。10%枠は狭く、役割名やHEXは入りきらない
-          ctx.fillStyle = readableInk(c);
-          ctx.textAlign = 'center';
-          ctx.font = 'bold 30px system-ui, sans-serif';
-          const pct = `${scheme.ratios[i]}%`;
-          if (ctx.measureText(pct).width <= segW - 10) {
-            ctx.fillText(pct, x + segW / 2, y + L.barH / 2 - 18);
+          // バー内は比率だけを大きく出す。10%枠は狭く、役割名やHEXは入りきらない。
+          // コンパクトでは比率も出さず、色の帯だけをシンプルに見せる。
+          if (!compact) {
+            ctx.fillStyle = readableInk(c);
+            ctx.textAlign = 'center';
+            ctx.font = 'bold 30px system-ui, sans-serif';
+            const pct = `${scheme.ratios[i]}%`;
+            if (ctx.measureText(pct).width <= segW - 10) {
+              ctx.fillText(pct, x + segW / 2, y + L.barH / 2 - 18);
+            }
           }
           x += segW;
         });
@@ -2119,30 +2312,35 @@
           ctx.fillStyle = scheme.colors[scheme.colors.length - 1];
           ctx.fillRect(x, y, L.pad + barW - x, L.barH);
         }
-        y += L.barH + 14;
+        y += L.barH + L.barGap;
 
-        // 凡例: 役割 + HEX。バー内に収まらない情報をここで確実に読めるようにする
-        const legendW = (width - L.pad * 2) / scheme.colors.length;
-        scheme.colors.forEach((c, i) => {
-          const lx = L.pad + i * legendW;
-          ctx.fillStyle = c;
-          roundRect(ctx, lx, y + 2, 22, 22, 5);
-          ctx.fill();
-          ctx.strokeStyle = '#00000022';
-          ctx.lineWidth = 1.5;
-          roundRect(ctx, lx, y + 2, 22, 22, 5);
-          ctx.stroke();
-          ctx.textAlign = 'left';
-          ctx.fillStyle = '#333333';
-          ctx.font = 'bold 20px system-ui, sans-serif';
-          // 役割はベース/アソート/アクセントの3色構成のときだけ意味を持つ
-          const role = scheme.colors.length === 3 ? ROLE_LABELS[ROLE_KEYS[i]] : '';
-          if (role) ctx.fillText(role, lx + 30, y + 2);
-          ctx.fillStyle = '#666666';
-          ctx.font = '19px ui-monospace, monospace';
-          ctx.fillText(colorToHex(c), lx + 30, y + (role ? 26 : 4));
-        });
-        y += L.legendH + L.blockGap;
+        // 凡例: 役割 + HEX。バー内に収まらない情報をここで確実に読めるようにする。
+        // コンパクトでは省略する(高さ計算側でも legendH を除外している)
+        if (!compact) {
+          const legendW = (width - L.pad * 2) / scheme.colors.length;
+          scheme.colors.forEach((c, i) => {
+            const lx = L.pad + i * legendW;
+            ctx.fillStyle = c;
+            roundRect(ctx, lx, y + 2, 22, 22, 5);
+            ctx.fill();
+            ctx.strokeStyle = '#00000022';
+            ctx.lineWidth = 1.5;
+            roundRect(ctx, lx, y + 2, 22, 22, 5);
+            ctx.stroke();
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 20px system-ui, sans-serif';
+            // 役割はベース/アソート/アクセントの3色構成のときだけ意味を持つ
+            const role = scheme.colors.length === 3 ? ROLE_LABELS[ROLE_KEYS[i]] : '';
+            if (role) ctx.fillText(role, lx + 30, y + 2);
+            ctx.fillStyle = '#666666';
+            ctx.font = '19px ui-monospace, monospace';
+            ctx.fillText(colorToHex(c), lx + 30, y + (role ? 26 : 4));
+          });
+          y += L.legendH + L.blockGap;
+        } else {
+          y += L.blockGap;
+        }
       });
     }
     return L.height;
@@ -2167,20 +2365,23 @@
       return mergeCanvas(); // 現在の画像をそのまま(解像度も維持)
     }
 
+    // パレットの体裁はユーザーの選択に従う(モードによる自動切り替えはしない)
+    const compact = exportPaletteSize === 'compact';
+
     if (mode === 'palette') {
-      const L = paletteLayout(EXPORT_W, colors, schemes);
+      const L = paletteLayout(EXPORT_W, colors, schemes, compact);
       const out = document.createElement('canvas');
       out.width = EXPORT_W;
       out.height = L.height;
       const ctx = out.getContext('2d');
-      drawPaletteSection(ctx, EXPORT_W, 0, colors, schemes);
+      drawPaletteSection(ctx, EXPORT_W, 0, colors, schemes, compact);
       return out;
     }
 
     // both: 上にキャンバス画像、下にパレット
     const img = mergeCanvas();
     const imgH = Math.round(img.height * (EXPORT_W / img.width));
-    const L = paletteLayout(EXPORT_W, colors, schemes);
+    const L = paletteLayout(EXPORT_W, colors, schemes, compact);
     const out = document.createElement('canvas');
     out.width = EXPORT_W;
     out.height = imgH + L.height;
@@ -2188,7 +2389,7 @@
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, out.width, out.height);
     ctx.drawImage(img, 0, 0, EXPORT_W, imgH);
-    drawPaletteSection(ctx, EXPORT_W, imgH, colors, schemes);
+    drawPaletteSection(ctx, EXPORT_W, imgH, colors, schemes, compact);
     // 画像とパレットの境界線
     ctx.fillStyle = '#00000018';
     ctx.fillRect(0, imgH, EXPORT_W, 2);
@@ -2216,6 +2417,28 @@
       modeRow.appendChild(btn);
     });
     container.appendChild(modeRow);
+
+    // パレットの体裁(「画像のみ」はパレットを描かないので出さない)
+    if (exportMode !== 'image') {
+      const sizeRow = document.createElement('div');
+      sizeRow.className = 'popup-row';
+      sizeRow.style.flexWrap = 'wrap';
+      const sizeLabel = document.createElement('span');
+      sizeLabel.textContent = 'パレット';
+      sizeLabel.style.cssText = 'font-size:12px;color:var(--muted);margin-right:2px;';
+      sizeRow.appendChild(sizeLabel);
+      [['standard', '標準'], ['compact', 'コンパクト']].forEach(([key, label]) => {
+        const btn = document.createElement('button');
+        btn.className = 'icon-btn pen-btn' + (exportPaletteSize === key ? ' active' : '');
+        btn.textContent = label;
+        btn.addEventListener('click', () => {
+          exportPaletteSize = key;
+          refreshPopupIfType('export');
+        });
+        sizeRow.appendChild(btn);
+      });
+      container.appendChild(sizeRow);
+    }
 
     // プレビュー
     const out = buildExportCanvas(exportMode);
@@ -2287,6 +2510,8 @@
       }
     }, 'image/png');
   }
+
+  bgColorBtn.addEventListener('click', () => openPopup('bgColor', 'キャンバス背景色', buildBgColorPopupContent));
 
   saveBtn.addEventListener('click', () => openPopup('export', '出力', buildExportPopupContent));
 
