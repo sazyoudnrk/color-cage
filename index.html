@@ -678,7 +678,9 @@
       eye.addEventListener('click', (e) => {
         e.stopPropagation();
         layer.visible = !layer.visible;
-        layer.canvas.style.display = layer.visible ? 'block' : 'none';
+        // display:none にすると要素の矩形が失われ、座標計算の基準に使えなくなる。
+        // visibility ならレイアウトを保ったまま非表示にできる。
+        layer.canvas.style.visibility = layer.visible ? 'visible' : 'hidden';
         refreshPopupIfType('layers');
       });
       
@@ -1779,11 +1781,15 @@
   // #canvas-wrapはflex:1で高さが決まるためサブピクセルの端数を持ちやすく、
   // その除算結果がzoomからわずかにズレて縦方向だけ誤差が拡大していた。
   function getPos(e) {
-    const canvasRect = layers[0].canvas.getBoundingClientRect(); // transform適用後の実表示矩形
+    // 基準は #stage。レイヤーcanvasを基準にすると、そのレイヤーを非表示
+    // (display:none)にした瞬間に矩形が全て0になり、座標が大きくずれる。
+    // #stage は常に表示されており、transform適用後の原点は
+    // 各レイヤーcanvas(stage内の0,0に絶対配置)の原点と一致する。
+    const originRect = stage.getBoundingClientRect();
     const t = e.touches ? e.touches[0] : e;
     return {
-      x: (t.clientX - canvasRect.left) / zoom,
-      y: (t.clientY - canvasRect.top) / zoom,
+      x: (t.clientX - originRect.left) / zoom,
+      y: (t.clientY - originRect.top) / zoom,
       t: Date.now(),
     };
   }
@@ -2440,12 +2446,8 @@
       container.appendChild(sizeRow);
     }
 
-    // プレビュー
+    // 出力画像を先に作る(保存ボタンとプレビューの両方がこれを使う)
     const out = buildExportCanvas(exportMode);
-    const preview = document.createElement('img');
-    preview.src = out.toDataURL('image/png');
-    preview.style.cssText = 'width:100%;height:auto;display:block;margin:10px 0;border-radius:10px;background:#fff;';
-    container.appendChild(preview);
 
     const actions = document.createElement('div');
     actions.className = 'popup-row';
@@ -2454,9 +2456,8 @@
     const shareNote = document.createElement('div');
     shareNote.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin:2px 0 8px;display:none;';
     shareNote.textContent = isIOS
-      ? '共有シートが開きます。「画像を保存」を選ぶとカメラロールに保存されます。'
+      ? '共有シートが開いたら「画像を保存」を選んでください。カメラロールに保存されます。'
       : '共有シートが開きます。保存先はお使いの環境によって異なります。';
-    container.appendChild(shareNote);
 
     const saveOut = document.createElement('button');
     saveOut.className = 'icon-btn pen-btn';
@@ -2485,6 +2486,11 @@
             if (err && err.name === 'AbortError') return; // ユーザーが閉じただけ
             exportCanvas(out); // 共有が使えない場合は従来の導線へ
           });
+        // 共有シートは何を押せばよいか分かりにくいので、背後の案内を目立たせる。
+        // シートを閉じて戻ってきたときにも見えるよう、表示は消さない。
+        shareNote.style.display = '';
+        shareNote.style.color = 'var(--ink)';
+        shareNote.style.fontWeight = '600';
         return;
       }
       // 未対応環境・準備前はダウンロード等の従来処理
@@ -2512,7 +2518,15 @@
       });
       actions.appendChild(copyOut);
     }
+    // 操作ボタンは設定のすぐ下に置く(プレビューが長いと下端まで届かないため)
     container.appendChild(actions);
+    container.appendChild(shareNote);
+
+    // プレビュー(確認用なので最後に置く)
+    const preview = document.createElement('img');
+    preview.src = out.toDataURL('image/png');
+    preview.style.cssText = 'width:100%;height:auto;display:block;margin:10px 0 0;border-radius:10px;background:#fff;';
+    container.appendChild(preview);
   }
 
   // 既存の保存導線(共有 → ダウンロード → iOSは別タブ表示)を出力全体で共用する
