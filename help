@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>使い方 - Color Cage</title>
+<style>
+  :root{
+    --bg: #1b1b1f;
+    --panel: #232329;
+    --panel-2: #2c2c33;
+    --ink: #f2f0ea;
+    --muted: #8b8a94;
+    --line: #35353d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: inherit; }
+
+  /* ヘッダー: アプリ本体と同じ形式 */
+  header {
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  header .back {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--panel);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  main { max-width: 640px; margin: 0 auto; padding: 20px 18px 60px; }
+
+  /* signature: パレットチップ。配色ツールの説明書であることを言葉より先に示す */
+  .swatch-chip {
+    display: inline-flex;
+    border-radius: 6px;
+    overflow: hidden;
+    height: 14px;
+    width: 34px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .swatch-chip span { flex: 1; }
+
+  /* 目次 */
+  nav.toc {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 28px;
+  }
+  nav.toc .toc-title {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+  nav.toc ol {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+    display: grid;
+    gap: 6px;
+  }
+  nav.toc li a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 4px 0;
+  }
+  nav.toc .num {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    width: 1.4em;
+  }
+
+  section { margin-bottom: 36px; }
+  section h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    margin: 0 0 14px;
+    padding-top: 8px;
+    scroll-margin-top: 70px;
+  }
+  section h2 .icon {
+    width: 20px; height: 20px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .lucide { width: 100%; height: 100%; }
+
+  .card {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .card h3 {
+    font-size: 14px;
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card p { margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+  .card p:last-child { margin-bottom: 0; }
+  .card .note {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .card ul { margin: 6px 0 0; padding-left: 20px; font-size: 14px; }
+  .card li { margin-bottom: 4px; }
+
+  .kbd {
+    display: inline-block;
+    background: var(--panel-2);
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+
+  .top-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 4px;
+  }
+
+  footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 24px 0 40px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="index.html" title="アプリに戻る">
+    <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+  </a>
+  <div>
+    <h1>Color Cage の使い方</h1>
+    <div class="sub">お絵描き＋パレット生成アプリ</div>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc" aria-label="目次">
+  <div class="toc-title">目次</div>
+  <ol>
+    <li><a href="#palette"><span class="num">01</span>パレットを作る</a></li>
+    <li><a href="#scheme"><span class="num">02</span>配色案(60:30:10)</a></li>
+    <li><a href="#draw"><span class="num">03</span>お絵描き</a></li>
+    <li><a href="#layer"><span class="num">04</span>レイヤー</a></li>
+    <li><a href="#import"><span class="num">05</span>画像を読み込む</a></li>
+    <li><a href="#export"><span class="num">06</span>保存・共有</a></li>
+    <li><a href="#settings"><span class="num">07</span>その他の設定</a></li>
+  </ol>
+</nav>
+
+<section id="palette">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+    パレットを作る
+  </h2>
+
+  <div class="card">
+    <h3><span class="swatch-chip"><span style="background:#e63946"></span><span style="background:#457b9d"></span><span style="background:#a8dadc"></span></span> ランダム生成</h3>
+    <p><span class="kbd">色の種類</span>(全色・ビビット・くすみ・パステル)と<span class="kbd">色相ルール</span>(四角・三角・補色・ほうき・同系色・ランダム)を選び、サイコロのアイコンをタップすると新しいパレットが生成されます。</p>
+    <p>色数はルールによって決まります。四角とほうきは4色、三角と同系色は3色、補色は2色です。</p>
+    <div class="note">スウォッチをタップすると、その色が描画に使う「現在の色」になります。</div>
+  </div>
+
+  <div class="card">
+    <h3>🔒 一部固定</h3>
+    <p>1〜2色の色相(H)だけを固定して、残りをランダムに生成できます。彩度・明度は「色の種類」のレンジ内でランダムに変わるので、指定した色と完全に同じHEXになるとは限りません。</p>
+  </div>
+
+  <div class="card">
+    <h3>✏️ セレクトモード</h3>
+    <p>色相ルールを使わず、自分で選んだ色だけでパレットを作るモードです。最大5色まで、カラーピッカーかキャンバス上のスポイト(💉)で指定できます。同じ色を複数の枠に登録することもできます。</p>
+    <p>選んだ色はH/S/Lを一切変更せず、指定した値そのままパレットに使われます。</p>
+    <div class="note">セレクト中は、色相ルールなどランダム生成専用の項目がグレーアウトして操作できなくなります。解除するともとのランダムパレットに戻ります。</div>
+  </div>
+
+  <div class="card">
+    <h3>定番パレット</h3>
+    <p>詳細設定でONにすると、あらかじめ用意された定番の配色をワンタップで呼び出せるボタンが増えます。</p>
+  </div>
+
+  <div class="card">
+    <h3>🕘 パレット履歴</h3>
+    <p>ランダム生成で確定したパレットを、直近5件まで保存しています。履歴のスウォッチをタップすると、再抽選せずそのときの色をそのまま復元します。</p>
+    <div class="note">アプリを閉じると履歴は消えます。保存はされません。</div>
+  </div>
+</section>
+
+<section id="scheme">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></span>
+    配色案(60:30:10)
+  </h2>
+  <div class="card">
+    <p>パレットの色を「60%・30%・10%」の比率で使う配分案が自動で表示されます。4色以上のパレットでは2案、3色以下では1案になります。</p>
+    <p>配色バー右の鉛筆アイコンから、各役割(ベース/アソート/アクセント)を「ランダム」か「セレクト」かで指定できます。</p>
+  </div>
+</section>
+
+<section id="draw">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg></span>
+    お絵描き
+  </h2>
+  <div class="card">
+    <h3>ツール</h3>
+    <ul>
+      <li><b>ペン</b> — 丸い先端で線を引きます</li>
+      <li><b>ペン2</b> — 正方形のドットで線を引きます</li>
+      <li><b>消しゴム</b> — 選んでいるペンの形状(丸／四角)に合わせて消えます</li>
+      <li><b>バケツ</b> — タップした位置から同系色の範囲を塗りつぶします。表示中の全レイヤーを重ねた見た目で判定するので、他のレイヤーの線をまたいで塗りつぶすことはありません。境界は1pxだけ広げて塗るので、輪郭に元の色が残りにくくなっています</li>
+      <li><b>移動(パン)</b> — 1本指でキャンバスを動かせます。2本指のピンチでズームも可能です</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>キャンバス背景色</h3>
+    <p>スウォッチ行の🎨背景ボタンから、キャンバスの背景色を変更できます。パレットの色から選ぶか、カラーピッカーで自由に指定できます。初期状態は白です。</p>
+  </div>
+  <div class="card">
+    <h3>ズーム</h3>
+    <p>キャンバスを開いたときは、全体が画面に収まる倍率で表示されます。常時表示バーの倍率ボタン(例: <span class="kbd">54%</span>)をタップすると、いつでも100%表示に戻せます。</p>
+    <div class="note">画面を回転させても、キャンバスの解像度自体は変わりません。表示の倍率だけが調整され、全体が見える状態を保ちます。</div>
+  </div>
+</section>
+
+<section id="layer">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></span>
+    レイヤー
+  </h2>
+  <div class="card">
+    <p>3枚のレイヤーで描けます。レイヤーパネルは、画面で手前に見えるレイヤーほど上に並びます。</p>
+    <ul>
+      <li>👁 アイコンで、レイヤーごとに表示・非表示を切り替えられます</li>
+      <li>不透明度スライダーで、レイヤーごとの透明度を調整できます</li>
+    </ul>
+    <div class="note">レイヤーの不透明度の変更は、戻す/進むの対象には含まれません。</div>
+  </div>
+</section>
+
+<section id="import">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
+    画像を読み込む
+  </h2>
+  <div class="card">
+    <p>タブの画像アイコンから、写真や画像ファイルをキャンバスとして読み込めます。</p>
+    <ul>
+      <li>読み込むと、現在描いている内容はすべて消えます(確認ダイアログが出ます)</li>
+      <li>読み込んだ画像は単一レイヤーとして扱われます</li>
+      <li>縦横比は保ったまま、キャンバスいっぱいに表示されます</li>
+      <li>大きすぎる画像は自動で縮小されます(最大1024px)。小さい画像を無理に拡大することはありません</li>
+    </ul>
+  </div>
+</section>
+
+<section id="export">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span>
+    保存・共有
+  </h2>
+  <div class="card">
+    <p>ヘッダー右上の保存アイコンから出力できます。3つのモードがあります。</p>
+    <ul>
+      <li><b>パレットのみ</b> — 配色資料として画像化</li>
+      <li><b>画像のみ</b> — 描いた絵だけを保存</li>
+      <li><b>パレット＋画像</b> — 絵の下にパレット資料を添えて1枚に</li>
+    </ul>
+    <p>パレット資料は「標準」と「コンパクト」の2サイズから選べます。</p>
+    <div class="note">iOSでは共有シートが開きます。「画像を保存」を選ぶとカメラロールに保存されます。SNSに投稿する場合、共有シートの中からXなどを選ぶと画像付きで投稿画面が開きます。</div>
+  </div>
+</section>
+
+<section id="settings">
+  <h2>
+    <span class="icon"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></span>
+    その他の設定
+  </h2>
+  <div class="card">
+    <ul>
+      <li><b>手ぶれ補正</b> — 線の揺れを抑える強さを選べます</li>
+      <li><b>明度を揃える</b> — ONにすると、パレットの全色の明度を一致させます</li>
+      <li><b>「定番」ボタンを表示</b> — 定番パレット呼び出しボタンの表示/非表示</li>
+      <li><b>色相環・彩度明度を表示</b> — 常時表示のミニ色相環とグラデーションの表示/非表示</li>
+      <li><b>色相のランダム幅</b> — 色相ルールごとに、ランダムに振れる角度の幅を調整できます</li>
+      <li><b>キャンバスサイズ</b> — 「画面に合わせる」か、512／768／1024pxの正方形から選べます</li>
+    </ul>
+  </div>
+</section>
+
+<a class="top-link" href="#top">
+  <svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="m18 15-6-6-6 6"/></svg>
+  目次に戻る
+</a>
+
+<footer>
+  Color Cage &middot; 制作: 砂上電力 <a href="https://x.com/sazyou_dnrk" target="_blank" rel="noopener noreferrer">@sazyou_dnrk</a>
+</footer>
+
+</main>
+</body>
+</html>
