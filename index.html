@@ -2874,9 +2874,13 @@
   // 色計算は一切やり直さず、画面に表示中の currentPaletteColors と colorSchemes を
   // そのまま描画する。別ロジックを持つと画面と出力で色が食い違うため。
   const EXPORT_W = 1080;
-  // 共有シート経由でX等に渡すテキスト。titleは見出しにしか使われないアプリが多く、
-  // 投稿本文に反映されるのはtextの方なのでこちらにハッシュタグを入れる。
-  const SHARE_TEXT = '#ColorCage で作った配色';
+  // 共有シート経由でX等に渡すテキストを組み立てる。titleは見出しにしか
+  // 使われないアプリが多く、投稿本文に反映されるのはtextの方なのでこちらに入れる。
+  // 呼び出し時点のパレットからHEXコードを並べるため、固定文字列ではなく関数にする。
+  function buildShareText() {
+    const codes = currentPaletteColors.map(c => colorToHex(c).replace('#', '')).join(' ');
+    return `配色コード　${codes}\n#ColorCage`;
+  }
   let exportMode = 'both'; // 'palette' | 'image' | 'both'
   let exportPaletteSize = 'compact'; // 'standard' | 'compact'
 
@@ -3156,7 +3160,7 @@
     saveOut.addEventListener('click', () => {
       // 準備できていれば共有シートを直接開く(ここで await を挟まない)
       if (exportFile) {
-        navigator.share({ files: [exportFile], title: 'Color Cage', text: SHARE_TEXT })
+        navigator.share({ files: [exportFile], title: 'Color Cage', text: buildShareText() })
           .catch((err) => {
             if (err && err.name === 'AbortError') return; // ユーザーが閉じただけ
             exportCanvas(out); // 共有が使えない場合は従来の導線へ
@@ -3215,7 +3219,7 @@
 
       if (canUseShare) {
         try {
-          await navigator.share({ files: [file], title: 'Color Cage', text: SHARE_TEXT });
+          await navigator.share({ files: [file], title: 'Color Cage', text: buildShareText() });
           return;
         } catch (err) {
           if (err && err.name === 'AbortError') return;
