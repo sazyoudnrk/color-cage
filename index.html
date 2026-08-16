@@ -53,7 +53,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    text-decoration: none;
+    cursor: pointer;
   }
   #help-link:active { background: var(--panel-2); }
 
@@ -373,6 +373,60 @@
     border-bottom: 1px solid var(--panel-2);
   }
   .popup-row:last-child { border-bottom: none; }
+
+  /* ヘルプポップアップ専用のスタイル(設定などの短い一覧とは違い、
+     長文の説明を見出し・カード単位で読みやすく並べる) */
+  .help-toc {
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+  }
+  .help-toc .help-toc-title {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .help-toc ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+  .help-toc a {
+    display: flex; align-items: center; gap: 8px;
+    text-decoration: none; color: var(--ink);
+    font-size: 13px; padding: 4px 2px;
+  }
+  .help-toc .num { font-size: 11px; color: var(--muted); width: 1.3em; flex-shrink: 0; }
+  .help-section { margin-bottom: 22px; scroll-margin-top: 8px; }
+  .help-section h3 {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14.5px; margin: 0 0 10px;
+  }
+  .help-section h3 .icon { width: 17px; height: 17px; color: var(--muted); flex-shrink: 0; }
+  .help-card {
+    background: var(--panel-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  .help-card b { font-weight: 700; }
+  .help-card ul { margin: 6px 0 0; padding-left: 18px; }
+  .help-card li { margin-bottom: 3px; }
+  .help-card .help-note {
+    font-size: 12px; color: var(--muted);
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid var(--panel);
+  }
+  .help-top-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--muted); text-decoration: none;
+  }
+  .help-footer {
+    text-align: center; font-size: 11px; color: var(--muted);
+    padding-top: 12px; margin-top: 8px; border-top: 1px solid var(--panel-2);
+  }
+  .help-footer a { color: inherit; }
+
   .popup-row-label {
     background: none;
     border: none;
@@ -444,7 +498,7 @@
 
 <header>
   <h1>Color Cage <span id="mode-label"></span> <span id="canvas-size-label" style="font-size: 11px; color: var(--muted); margin-left: 8px;"></span></h1>
-  <a id="help-link" href="help.html" target="_blank" rel="noopener noreferrer" title="使い方"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></a>
+  <button id="help-link" title="使い方"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
   <button id="save" title="保存"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></button>
 </header>
 
@@ -566,6 +620,7 @@
 
   const modeLabel = document.getElementById('mode-label');
   const saveBtn = document.getElementById('save');
+  const helpLink = document.getElementById('help-link');
   const eraserBtn = document.getElementById('eraser');
   const bucketBtn = document.getElementById('bucket');
   const panToolBtn = document.getElementById('pan-tool');
@@ -628,6 +683,12 @@
     zoomOut: '<circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/>',
     dices: '<rect width="12" height="12" x="2" y="10" rx="2" ry="2"/><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"/><path d="M6 18h.01"/><path d="M10 14h.01"/><path d="M15 6h.01"/><path d="M18 9h.01"/>',
     save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+    palette: '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>',
+    pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+    layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
+    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    settings: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+    eraser: '<path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/>',
   };
   // アイコンのSVG文字列を返す。ラベルを渡すと右に文字を添える。
   function icon(name, label) {
@@ -804,6 +865,7 @@
       if (type === 'history') buildHistoryPopupContent(body);
       if (type === 'select') buildSelectEditPopupContent(body);
       if (type === 'import') buildImportPopupContent(body);
+      if (type === 'help') buildHelpPopupContent(body);
     }
   }
 
@@ -973,6 +1035,101 @@
     row.style.display = showMiniColorRow ? '' : 'none';
     // 表示に戻したときは最新の選択色を反映しておく
     if (showMiniColorRow) updateMiniColorWidgets();
+  }
+
+  // ---- ヘルプ(使い方) ポップアップ ----
+  // ページ遷移を伴わないアプリ内ポップアップとして表示する。
+  // 別タブ/別ページに出すと、ホーム画面追加時の単体アプリ表示などで
+  // 現在のページごと置き換わってしまう環境があり、描画中の内容が
+  // 消えるおそれがあるため、この方式を採用している。
+  function buildHelpPopupContent(container) {
+    const sec = (id, iconName, title, cardsHtml) => `
+      <div class="help-section" id="help-${id}">
+        <h3><span class="icon">${icon(iconName)}</span>${title}</h3>
+        ${cardsHtml}
+      </div>`;
+    const card = (inner) => `<div class="help-card">${inner}</div>`;
+
+    container.innerHTML = `
+      <div class="help-toc" id="help-toc-anchor">
+        <div class="help-toc-title">目次</div>
+        <ol>
+          <li><a href="#help-palette"><span class="num">01</span>パレットを作る</a></li>
+          <li><a href="#help-scheme"><span class="num">02</span>配色案(60:30:10)</a></li>
+          <li><a href="#help-draw"><span class="num">03</span>お絵描き</a></li>
+          <li><a href="#help-layer"><span class="num">04</span>レイヤー</a></li>
+          <li><a href="#help-import"><span class="num">05</span>画像を読み込む</a></li>
+          <li><a href="#help-export"><span class="num">06</span>保存・共有</a></li>
+          <li><a href="#help-settings"><span class="num">07</span>その他の設定</a></li>
+        </ol>
+      </div>
+
+      ${sec('palette', 'palette', 'パレットを作る',
+        card(`<b>ランダム生成</b><br>「色の種類」(全色・ビビット・くすみ・パステル)と「色相ルール」(四角・三角・補色・ほうき・同系色・ランダム)を選び、サイコロのアイコンをタップすると新しいパレットが生成されます。色数はルールで決まります(四角/ほうき=4色、三角/同系色=3色、補色=2色)。
+          <div class="help-note">スウォッチをタップすると、その色が描画に使う「現在の色」になります。</div>`) +
+        card(`<b>🔒 一部固定</b><br>1〜2色の色相(H)だけを固定して、残りをランダムに生成できます。彩度・明度はランダムに変わるため、指定した色と完全一致するとは限りません。`) +
+        card(`<b>✏️ セレクトモード</b><br>色相ルールを使わず、自分で選んだ色だけでパレットを作れます。最大5色、カラーピッカーかキャンバス上のスポイト(💉)で指定でき、同じ色を複数登録することもできます。選んだ色はH/S/Lを変更せず、指定した値そのまま使われます。
+          <div class="help-note">セレクト中はランダム関連の項目がグレーアウトします。解除すると元のランダムパレットに戻ります。</div>`) +
+        card(`<b>定番パレット</b><br>詳細設定でONにすると、定番の配色を呼び出すボタンが増えます。`) +
+        card(`<b>🕘 パレット履歴</b><br>ランダム生成で確定したパレットを直近5件保存します。タップすると再抽選せず、そのときの色をそのまま復元します。
+          <div class="help-note">アプリを閉じると履歴は消えます。</div>`)
+      )}
+
+      ${sec('scheme', 'pencil', '配色案(60:30:10)',
+        card(`パレットの色を「60%・30%・10%」の比率で使う配分案が自動表示されます。4色以上で2案、3色以下で1案です。配色バー右の鉛筆アイコンから、各役割(ベース/アソート/アクセント)を「ランダム」か「セレクト」かで指定できます。`)
+      )}
+
+      ${sec('draw', 'eraser', 'お絵描き',
+        card(`<ul>
+          <li><b>ペン</b> — 丸い先端で線を引きます</li>
+          <li><b>ペン2</b> — 正方形のドットで線を引きます</li>
+          <li><b>消しゴム</b> — 選んでいるペンの形状(丸／四角)に合わせて消えます</li>
+          <li><b>バケツ</b> — 表示中の全レイヤーを重ねた見た目で塗る範囲を判定します。境界を1px広げてから塗るので、輪郭に元の色が残りにくくなっています</li>
+          <li><b>移動(パン)</b> — 1本指で移動、2本指のピンチでズームできます</li>
+        </ul>`) +
+        card(`<b>キャンバス背景色</b><br>スウォッチ行の🎨背景ボタンから変更できます。パレットの色、またはカラーピッカーで自由に指定できます(初期値は白)。`) +
+        card(`<b>ズーム</b><br>開いたときは全体が画面に収まる倍率で表示されます。常時表示バーの倍率ボタンで100%表示に戻せます。
+          <div class="help-note">画面を回転させても解像度は変わらず、表示の倍率だけが調整されます。</div>`)
+      )}
+
+      ${sec('layer', 'layers', 'レイヤー',
+        card(`3枚のレイヤーで描けます。レイヤーパネルは、画面で手前に見えるレイヤーほど上に並びます。👁アイコンで表示/非表示、スライダーで不透明度を調整できます。
+          <div class="help-note">不透明度の変更は、戻す/進むの対象には含まれません。</div>`)
+      )}
+
+      ${sec('import', 'image', '画像を読み込む',
+        card(`<ul>
+          <li>読み込むと現在描いている内容はすべて消えます(確認ダイアログが出ます)</li>
+          <li>読み込んだ画像は単一レイヤーとして扱われます</li>
+          <li>縦横比は保ったまま、キャンバスいっぱいに表示されます</li>
+          <li>大きすぎる画像は自動で縮小されます(最大1024px)。小さい画像を無理に拡大することはありません</li>
+        </ul>`)
+      )}
+
+      ${sec('export', 'save', '保存・共有',
+        card(`<ul>
+          <li><b>パレットのみ</b> — 配色資料として画像化</li>
+          <li><b>画像のみ</b> — 描いた絵だけを保存</li>
+          <li><b>パレット＋画像</b> — 絵の下にパレット資料を添えて1枚に</li>
+        </ul>
+        パレット資料は「標準」と「コンパクト」から選べます。
+          <div class="help-note">iOSでは共有シートが開きます。「画像を保存」でカメラロールに保存されます。共有シートからXなどを選ぶと画像付きで投稿画面が開きます。</div>`)
+      )}
+
+      ${sec('settings', 'settings', 'その他の設定',
+        card(`<ul>
+          <li><b>手ぶれ補正</b> — 線の揺れを抑える強さ</li>
+          <li><b>明度を揃える</b> — パレット全色の明度を一致させる</li>
+          <li><b>「定番」ボタンを表示</b> — 定番パレット呼び出しボタンの表示/非表示</li>
+          <li><b>色相環・彩度明度を表示</b> — 常時表示のミニ色相環とグラデーションの表示/非表示</li>
+          <li><b>色相のランダム幅</b> — 色相ルールごとの、ランダムに振れる角度の幅</li>
+          <li><b>キャンバスサイズ</b> — 「画面に合わせる」か512／768／1024pxの正方形</li>
+        </ul>`)
+      )}
+
+      <a class="help-top-link" href="#help-toc-anchor">目次に戻る</a>
+      <div class="help-footer">Color Cage ・ 制作: 砂上電力 <a href="https://x.com/sazyou_dnrk" target="_blank" rel="noopener noreferrer">@sazyou_dnrk</a></div>
+    `;
   }
 
   function buildSettingsPopupContent(container) {
@@ -3260,6 +3417,7 @@
   bgColorBtn.addEventListener('click', () => openPopup('bgColor', 'キャンバス背景色', buildBgColorPopupContent));
 
   saveBtn.addEventListener('click', () => openPopup('export', '出力', buildExportPopupContent));
+  helpLink.addEventListener('click', () => openPopup('help', '使い方', buildHelpPopupContent));
 
   function fallbackOpenTab(canvasEl) {
     const w = window.open('', '_blank');
