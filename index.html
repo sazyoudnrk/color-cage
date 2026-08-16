@@ -637,6 +637,23 @@
     zoom = 1; panX = 0; panY = 0; clampPan(); applyZoom();
   });
 
+  // キャンバス全体が表示領域に収まる倍率にして中央に置く。
+  // 縦横どちらもはみ出さない倍率(短い方の比率)を使うので、
+  // キャンバスと画面の縦横比が違っても全体を見渡せる。
+  function fitCanvasToView() {
+    const rect = wrap.getBoundingClientRect();
+    const base = layers[0] ? layers[0].canvas : null;
+    const baseW = base ? parseFloat(base.style.width) || rect.width : rect.width;
+    const baseH = base ? parseFloat(base.style.height) || rect.height : rect.height;
+    if (!baseW || !baseH || !rect.width || !rect.height) return;
+    // 拡大はせず、収まりきらない場合だけ縮小する
+    const fit = Math.min(rect.width / baseW, rect.height / baseH, 1);
+    zoom = clampNum(fit, ZOOM_MIN, ZOOM_MAX);
+    panX = 0; panY = 0;
+    clampPan(); // 収まる場合は中央寄せされる
+    applyZoom();
+  }
+
   function applyZoom() {
     stage.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
     // 等倍以外のときだけ表示して、縮小したまま戻せなくなるのを防ぐ
@@ -882,8 +899,10 @@
     const collapsed = dock.classList.toggle('collapsed');
     // textContentで書き換えるとSVGアイコンが消えるため、回転はCSSで行う
     dockToggleBtn.title = collapsed ? 'ツールバーを展開' : 'ツールバーを折りたたむ';
-    // 表示領域が変わるのでキャンバスサイズを取り直す
-    resizeAllCanvases();
+    // キャンバスの大きさは畳んだ状態を基準に固定しているので作り直さない。
+    // 表示領域だけが変わるため、はみ出し防止の位置調整のみ行う。
+    clampPan();
+    applyZoom();
   });
 
   // ---- 詳細設定ポップアップ(今後の設定項目もここに追加していく) ----
@@ -904,6 +923,22 @@
   // 画像インポートで決まったキャンバス寸法。設定されている間は
   // 「画面に合わせる」でも画面サイズへ変更せず、この寸法を維持する。
   let importedCanvasSize = null; // null | {width, height}
+
+  // 「画面に合わせる」ときの基準サイズ。ツールバーを畳んだ状態の表示領域を指す。
+  // 描画中にキャンバスの大きさが変わらないよう、一度決めたら保持する。
+  let fitScreenBaseSize = null; // null | {width, height}
+
+  // ツールバーを一時的に畳んで、最も広くなったときの表示領域を測る。
+  // 実際に畳んで測るので、パディングやsafe-areaを含めた実寸が得られる。
+  function measureFitScreenBaseSize() {
+    const wasCollapsed = dock.classList.contains('collapsed');
+    if (!wasCollapsed) dock.classList.add('collapsed');
+    // クラス変更後にgetBoundingClientRectを呼ぶとレイアウトが再計算される
+    const rect = wrap.getBoundingClientRect();
+    const size = { width: Math.round(rect.width), height: Math.round(rect.height) };
+    if (!wasCollapsed) dock.classList.remove('collapsed');
+    return size;
+  }
 
   // 「定番」ボタンの表示状態を反映する。非表示にする場合、定番パレットが
   // 選択されたままだと操作不能になるため、通常のパレット生成に戻す。
@@ -1067,6 +1102,8 @@
         importedCanvasSize = null;
         updateCanvasSizeLabel();
         resizeAllCanvases();
+        // 新しいサイズの全体が見えるように表示を合わせ直す
+        fitCanvasToView();
         refreshPopupIfType('settings');
       });
       container.appendChild(btn);
@@ -1408,9 +1445,7 @@
     importedCanvasSize = { width: cssW, height: cssH };
 
     // キャンバス全体が見えるようズームを初期化する
-    zoom = 1; panX = 0; panY = 0;
-    clampPan();
-    applyZoom();
+    fitCanvasToView();
     updateCanvasSizeLabel();
     refreshPopupIfType('layers');
   }
@@ -2296,6 +2331,19 @@
       // インポートした画像の寸法を維持する(画面サイズに引き伸ばさない)
       cssW = importedCanvasSize.width;
       cssH = importedCanvasSize.height;
+    } else if (fitScreenBaseSize) {
+      // 「画面に合わせる」の基準は、ツールバーを畳んだ状態(＝最も広い表示領域)。
+      // 展開時の狭い領域を基準にすると、描いている途中で畳んだときに
+      // キャンバスが広がってしまうため、起動時に測った値を使い続ける。
+      cssW = fitScreenBaseSize.width;
+      cssH = fitScreenBaseSize.height;
+      // 画面回転で基準が測り直された場合でも、縮小はしない。
+      // 縮めると、はみ出した部分の描画が復元できずに失われるため。
+      const cur = layers[0] ? layers[0].canvas : null;
+      if (cur) {
+        cssW = Math.max(cssW, Math.round(parseFloat(cur.style.width) || 0));
+        cssH = Math.max(cssH, Math.round(parseFloat(cur.style.height) || 0));
+      }
     } else {
       const rect = wrap.getBoundingClientRect();
       cssW = Math.round(rect.width);
@@ -3190,16 +3238,25 @@
     );
   }
 
-  window.addEventListener('resize', resizeAllCanvases);
+  // 画面回転やウィンドウサイズ変更では、キャンバスの解像度は変更しない。
+  // 解像度が変わるのは設定でサイズを指定したときと画像インポート時だけ。
+  // ここでは表示領域の形が変わるため、全体が見えるよう倍率だけ合わせ直す。
+  window.addEventListener('resize', () => {
+    fitCanvasToView();
+  });
 
   // ---------- 初期化 ----------
+  // キャンバスを作る前に、ツールバーを畳んだ状態の表示領域を測っておく。
+  // これを基準にすることで、描画中にツールバーを開閉してもサイズが変わらない。
+  fitScreenBaseSize = measureFitScreenBaseSize();
   resizeAllCanvases();
   updateCanvasSizeLabel();
   applyDefaultButtonVisibility();
   applyPaletteModeUI();
   applyMiniColorRowVisibility();
   applyPalette();
-  applyZoom();
+  // 初期表示はキャンバス全体が見える倍率にする
+  fitCanvasToView();
   setTool('pen');
 })();
 </script>
