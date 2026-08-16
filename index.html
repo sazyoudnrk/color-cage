@@ -129,7 +129,72 @@
     align-items: center;
     justify-content: center;
   }
+  /* 設定内のアコーディオン(色相ランダム幅などをまとめる) */
+  .settings-accordion {
+    background: var(--panel);
+    border-radius: 12px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+  .settings-accordion > summary {
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .settings-accordion > summary::-webkit-details-marker { display: none; }
+  .settings-accordion > summary::after {
+    content: '▼';
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+  .settings-accordion[open] > summary::after { transform: rotate(180deg); }
+  .settings-accordion .accordion-body { padding: 0 12px 10px; }
+
   .icon-btn:active { background: var(--panel-2); }
+  /* テキストを含むボタンは34px角に収まらず折り返すため、幅を内容に合わせる */
+  /* Lucideアイコン(ISCライセンス)。24グリッド・2pxストロークの規則に従う */
+  /* スポイト待機中: キャンバス以外を暗くして、拾う場所に注意を向ける */
+  body.eyedropping #dock,
+  body.eyedropping header {
+    filter: brightness(0.45);
+    transition: filter 0.15s;
+  }
+  #eyedrop-guide {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 12px 0;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  body.eyedropping #eyedrop-guide { display: flex; }
+  /* 案内はドックの外に置くので暗転の対象外になり、常に読める */
+  #eyedrop-guide .guide-text { flex: 1; }
+
+  .lucide {
+    width: 19px;
+    height: 19px;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  #bg-color-btn, #select-edit-btn {
+    width: auto;
+    padding: 0 10px;
+    gap: 4px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
   .icon-btn.active {
     background: var(--ink);
     color: #16161a;
@@ -353,6 +418,12 @@
 
 <div id="canvas-wrap"><div id="stage"><div id="paper"></div></div></div>
 
+<!-- スポイト待機中の案内。キャンバスの直下に出し、ドックの暗転対象からは外す -->
+<div id="eyedrop-guide">
+  <span class="guide-text">スポイトしたい場所を選択してください</span>
+  <button class="icon-btn pen-btn" id="eyedrop-cancel">キャンセル</button>
+</div>
+
 <div id="dock">
 
   <!-- 常時表示バー: アンドゥ/リドゥ + 折りたたみトグル -->
@@ -371,9 +442,11 @@
     <!-- 上部タブ(レイヤー/ズーム/詳細設定/レイヤー消去) -->
     <div class="row" id="top-tabs-row">
       <div class="group" id="top-tabs">
-        <button class="icon-btn" id="tab-layers" title="レイヤー">📑</button>
+        <button class="icon-btn" id="tab-layers" title="レイヤー"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg></button>
         <button class="icon-btn" id="tab-zoom" title="ズーム">🔍</button>
         <button class="icon-btn" id="tab-settings" title="詳細設定">⚙️</button>
+        <button class="icon-btn" id="tab-history" title="パレット履歴">🕘</button>
+        <button class="icon-btn" id="tab-import" title="画像を読み込む">🖼️</button>
         <button class="icon-btn" id="clear-layer" title="このレイヤーを消す">🗑</button>
       </div>
     </div>
@@ -394,6 +467,7 @@
         <option value="analogous">同系色(3色)</option>
         <option value="random">ランダム(4色)</option>
       </select>
+      <button class="icon-btn pen-btn" id="palette-mode-toggle" title="ランダム/セレクトの切り替え">セレクト</button>
       <button class="icon-btn" id="shuffle" title="パレットを生成">🎲</button>
       <button class="icon-btn" id="fix-btn" title="色相を固定">🔒</button>
       <button class="icon-btn pen-btn" id="default-toggle" title="定番パレット">定番</button>
@@ -402,11 +476,11 @@
     <!-- 配色バー -->
     <div class="row" id="scheme-row">
       <div class="scheme-wrap" id="scheme-wrap"></div>
-      <button class="icon-btn" id="scheme-config-btn" title="配色を指定">🎚</button>
+      <button class="icon-btn" id="scheme-config-btn" title="配色を指定"><svg class="lucide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></button>
     </div>
 
     <!-- ミニ色相環・SL表示 -->
-    <div class="row">
+    <div class="row" id="mini-color-row">
       <canvas id="mini-wheel" width="56" height="56" class="mini-wheel-canvas" title="色相環(タップで詳細)"></canvas>
       <canvas id="mini-sl" width="120" height="56" class="mini-sl-canvas" title="彩度・明度(タップで詳細)"></canvas>
     </div>
@@ -417,6 +491,7 @@
   <!-- スウォッチ行(常時表示) -->
   <div class="row">
     <div class="swatches" id="swatches"></div>
+    <button class="icon-btn" id="select-edit-btn" title="セレクト色を編集" style="display:none;">✏️編集</button>
     <button class="icon-btn" id="bg-color-btn" title="キャンバス背景色">🎨背景</button>
   </div>
 
@@ -451,6 +526,11 @@
   const hueTypeSelect = document.getElementById('hue-type-select');
   const defaultToggleBtn = document.getElementById('default-toggle');
   const bgColorBtn = document.getElementById('bg-color-btn');
+  const paletteModeToggle = document.getElementById('palette-mode-toggle');
+  const selectEditBtn = document.getElementById('select-edit-btn');
+  const tabHistoryBtn = document.getElementById('tab-history');
+  const tabImportBtn = document.getElementById('tab-import');
+  const fixBtn = document.getElementById('fix-btn');
 
   const modeLabel = document.getElementById('mode-label');
   const saveBtn = document.getElementById('save');
@@ -644,6 +724,9 @@
       if (type === 'zoom') buildZoomPopupContent(body);
       if (type === 'export') buildExportPopupContent(body);
       if (type === 'fix') buildFixPopupContent(body);
+      if (type === 'history') buildHistoryPopupContent(body);
+      if (type === 'select') buildSelectEditPopupContent(body);
+      if (type === 'import') buildImportPopupContent(body);
     }
   }
 
@@ -762,6 +845,8 @@
   // ---- 詳細設定ポップアップ(今後の設定項目もここに追加していく) ----
   let matchLightness = false; // 「明度を揃える」: ONなら全色で明度を完全一致させる
   let showDefaultButton = false; // 「定番」ボタンの表示/非表示。デフォルトはOFF(非表示)
+  // ミニ色相環・SLグラデーション行の表示。OFFなら行ごと折りたたむ(空白を残さない)
+  let showMiniColorRow = true;
   // 色相のランダム変動量(初期値は改修前の実装値をそのまま踏襲)
   const hueJitterSettings = { square: 20, triangle: 20, complement: 15, broom: 10, analogous: 10 };
   // キャンバスサイズプリセット: {name, width, height}
@@ -772,6 +857,9 @@
     { name: '1024×1024', width: 1024, height: 1024 },
   ];
   let selectedCanvasSizeIndex = 0; // デフォルトは「画面に合わせる」
+  // 画像インポートで決まったキャンバス寸法。設定されている間は
+  // 「画面に合わせる」でも画面サイズへ変更せず、この寸法を維持する。
+  let importedCanvasSize = null; // null | {width, height}
 
   // 「定番」ボタンの表示状態を反映する。非表示にする場合、定番パレットが
   // 選択されたままだと操作不能になるため、通常のパレット生成に戻す。
@@ -782,6 +870,14 @@
       defaultToggleBtn.classList.remove('active');
       applyPalette();
     }
+  }
+
+  function applyMiniColorRowVisibility() {
+    const row = document.getElementById('mini-color-row');
+    // display:none で行ごと消し、余白が残らないようにする
+    row.style.display = showMiniColorRow ? '' : 'none';
+    // 表示に戻したときは最新の選択色を反映しておく
+    if (showMiniColorRow) updateMiniColorWidgets();
   }
 
   function buildSettingsPopupContent(container) {
@@ -838,12 +934,49 @@
     dtRow.appendChild(dtBtn);
     container.appendChild(dtRow);
 
+    // ミニ色相環・SLグラデーションの表示切り替え
+    const mcRow = document.createElement('div');
+    mcRow.className = 'popup-row';
+    const mcLabel = document.createElement('span');
+    mcLabel.textContent = '色相環・彩度明度を表示';
+    mcLabel.style.fontSize = '13px';
+    mcLabel.style.fontWeight = '600';
+    const mcBtn = document.createElement('button');
+    mcBtn.className = 'icon-btn pen-btn' + (showMiniColorRow ? ' active' : '');
+    mcBtn.textContent = showMiniColorRow ? 'ON' : 'OFF';
+    mcBtn.addEventListener('click', () => {
+      showMiniColorRow = !showMiniColorRow;
+      applyMiniColorRowVisibility();
+      refreshPopupIfType('settings');
+    });
+    mcRow.appendChild(mcLabel);
+    mcRow.appendChild(mcBtn);
+    container.appendChild(mcRow);
+
+    // 色相ランダム幅は項目数が多く設定が縦に伸びるため、アコーディオンにまとめる。
+    // ランダム生成専用の設定なので、セレクトモード中は開けないようにする。
+    const jitterBox = document.createElement('details');
+    jitterBox.className = 'settings-accordion';
+    // デフォルトは閉じた状態
+    const jitterSummary = document.createElement('summary');
+    jitterSummary.textContent = '色相のランダム幅';
+    jitterBox.appendChild(jitterSummary);
+    const jitterBody = document.createElement('div');
+    jitterBody.className = 'accordion-body';
+    jitterBox.appendChild(jitterBody);
+
+    if (paletteMode === 'select') {
+      jitterBox.style.opacity = '0.4';
+      jitterBox.style.pointerEvents = 'none';
+      jitterSummary.textContent = '色相のランダム幅（セレクト中は使用しません）';
+    }
+
     [['square', '四角'], ['triangle', '三角'], ['complement', '補色'], ['broom', 'ほうき'], ['analogous', '同系色']].forEach(([key, label]) => {
       const row = document.createElement('div');
       row.className = 'popup-slider-row';
       const head = document.createElement('div');
       head.className = 'popup-slider-head';
-      head.innerHTML = `<span>${label}の色相ランダム幅</span><span>±${hueJitterSettings[key]}°</span>`;
+      head.innerHTML = `<span>${label}</span><span>±${hueJitterSettings[key]}°</span>`;
       const slider = document.createElement('input');
       slider.type = 'range';
       slider.min = '5';
@@ -855,8 +988,9 @@
       });
       row.appendChild(head);
       row.appendChild(slider);
-      container.appendChild(row);
+      jitterBody.appendChild(row);
     });
+    container.appendChild(jitterBox);
 
     // キャンバスサイズ選択
     const sizeLabel = document.createElement('span');
@@ -885,6 +1019,8 @@
           return;
         }
         selectedCanvasSizeIndex = idx;
+        // ユーザーが明示的にサイズを選び直したので、インポート寸法の維持は解除する
+        importedCanvasSize = null;
         updateCanvasSizeLabel();
         resizeAllCanvases();
         refreshPopupIfType('settings');
@@ -1001,6 +1137,296 @@
     container.appendChild(pickerSection);
   }
 
+  // ---- パレット履歴 ポップアップ ----
+  function buildHistoryPopupContent(container) {
+    if (!paletteHistory.length) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:13px;color:var(--muted);padding:8px 0;';
+      empty.textContent = 'まだ履歴がありません。パレットを生成すると、ここに最大5件まで残ります。';
+      container.appendChild(empty);
+      return;
+    }
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;';
+    note.textContent = '選ぶと、そのときのパレットをそのまま復元します(再抽選はしません)。新しい順に表示しています。';
+    container.appendChild(note);
+
+    paletteHistory.forEach((entry) => {
+      const row = document.createElement('button');
+      row.className = 'popup-row';
+      row.style.cssText = 'width:100%;text-align:left;cursor:pointer;';
+      const swatchesEl = document.createElement('div');
+      swatchesEl.className = 'swatches';
+      swatchesEl.style.pointerEvents = 'none'; // クリックは行全体で受ける
+      entry.colors.forEach(c => {
+        const sw = document.createElement('span');
+        sw.className = 'swatch';
+        sw.style.background = c;
+        swatchesEl.appendChild(sw);
+      });
+      row.appendChild(swatchesEl);
+      row.addEventListener('click', () => {
+        // 再抽選せず、当時の色をそのまま現在のパレットにする。
+        // セレクトモード中に選ばれた場合はランダムモードへ戻す(履歴はランダム生成の産物のため)。
+        paletteMode = 'random';
+        useDefaultPalette = false;
+        paletteStateBeforeSelect = null; // 履歴で上書きするので退避は無効化する
+        applyPaletteModeUI();
+        buildSwatches(entry.colors.slice());
+        modeLabel.textContent = '履歴から復元';
+        closePopup();
+      });
+      container.appendChild(row);
+    });
+  }
+
+  // ---- セレクトモード 色編集 ポップアップ ----
+  const SELECT_COLORS_MAX = 5;
+  let selectEditingIndex = null; // スポイト待機中の枠index。nullなら待機していない
+
+  function buildSelectEditPopupContent(container) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;';
+    note.textContent = '使う色を1〜5色、自由に選べます。カラーピッカーか、キャンバス上のスポイトで指定できます。';
+    container.appendChild(note);
+
+    selectColors.forEach((c, i) => {
+      const row = document.createElement('div');
+      row.className = 'popup-row';
+
+      const swatch = document.createElement('div');
+      swatch.className = 'swatch';
+      swatch.style.background = c;
+      swatch.style.flexShrink = '0';
+
+      const picker = document.createElement('input');
+      picker.type = 'color';
+      picker.value = c;
+      picker.style.cssText = 'width:44px;height:36px;border:none;border-radius:8px;cursor:pointer;flex-shrink:0;';
+
+      // カラーコードは表示だけでなく直接入力もできるようにする
+      const hexInput = document.createElement('input');
+      hexInput.type = 'text';
+      hexInput.value = c.toUpperCase();
+      hexInput.spellcheck = false;
+      hexInput.autocapitalize = 'characters';
+      hexInput.setAttribute('inputmode', 'text');
+      hexInput.setAttribute('maxlength', '7');
+      hexInput.style.cssText = 'flex:1;min-width:0;background:var(--panel-2);color:var(--ink);' +
+        'border:1px solid transparent;border-radius:8px;padding:6px 8px;' +
+        'font-size:12px;font-weight:600;font-family:ui-monospace,monospace;';
+
+      // この枠の色を確定させる共通処理(ピッカー・入力欄のどちらからでも通る)
+      function commitColor(hex) {
+        selectColors[i] = hex;
+        swatch.style.background = hex;
+        picker.value = hex;
+        if (paletteMode === 'select') applyPalette();
+      }
+
+      picker.addEventListener('input', () => {
+        hexInput.value = picker.value.toUpperCase();
+        hexInput.style.borderColor = 'transparent';
+        commitColor(picker.value);
+      });
+
+      // 入力途中は反映せず、正しい形式になったときだけ適用する
+      hexInput.addEventListener('input', () => {
+        const hex = normalizeHex(hexInput.value);
+        hexInput.style.borderColor = hex ? 'transparent' : '#e63946';
+        if (hex) commitColor(hex);
+      });
+      // 確定時は表示を正規化する(#省略や3桁でも整った形に直す)
+      hexInput.addEventListener('blur', () => {
+        const hex = normalizeHex(hexInput.value);
+        hexInput.value = (hex || selectColors[i]).toUpperCase();
+        hexInput.style.borderColor = 'transparent';
+      });
+      hexInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') hexInput.blur();
+      });
+      // タップしたらすぐ書き換えられるよう全選択する
+      hexInput.addEventListener('focus', () => hexInput.select());
+
+      const eyedropBtn = document.createElement('button');
+      eyedropBtn.className = 'icon-btn' + (selectEditingIndex === i ? ' active' : '');
+      eyedropBtn.textContent = '💉';
+      eyedropBtn.title = 'キャンバスからスポイト';
+      eyedropBtn.addEventListener('click', () => {
+        // トグル: もう一度押したら待機解除
+        if (selectEditingIndex === i) {
+          selectEditingIndex = null;
+          setTool(penToolBeforeEraser);
+          refreshPopupIfType('select');
+        } else {
+          selectEditingIndex = i;
+          setTool('eyedropper');
+          closePopup(); // キャンバスをタップしやすいようポップアップを閉じる
+        }
+      });
+
+      row.appendChild(swatch);
+      row.appendChild(picker);
+      row.appendChild(hexInput);
+      row.appendChild(eyedropBtn);
+
+      if (selectColors.length > 1) {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn';
+        delBtn.textContent = '✕';
+        delBtn.title = 'この色を削除';
+        delBtn.addEventListener('click', () => {
+          selectColors.splice(i, 1);
+          if (selectEditingIndex === i) selectEditingIndex = null;
+          refreshPopupIfType('select');
+          if (paletteMode === 'select') applyPalette();
+        });
+        row.appendChild(delBtn);
+      }
+      container.appendChild(row);
+    });
+
+    if (selectColors.length < SELECT_COLORS_MAX) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'icon-btn pen-btn';
+      addBtn.textContent = '＋ 色を追加';
+      addBtn.style.width = '100%';
+      addBtn.addEventListener('click', () => {
+        // 追加する色は最後の色を複製しておく(同色の複数登録も許可されているため問題ない)
+        selectColors.push(selectColors[selectColors.length - 1] || '#e63946');
+        refreshPopupIfType('select');
+        if (paletteMode === 'select') applyPalette();
+      });
+      container.appendChild(addBtn);
+    }
+
+    if (selectEditingIndex !== null) {
+      const hint = document.createElement('div');
+      hint.style.cssText = 'font-size:12px;color:var(--ink);font-weight:600;margin-top:10px;';
+      hint.textContent = `スポイト待機中: キャンバスをタップすると ${selectEditingIndex + 1}色目に反映します。`;
+      container.appendChild(hint);
+    }
+  }
+
+  tabHistoryBtn.addEventListener('click', () => openPopup('history', 'パレット履歴', buildHistoryPopupContent));
+  selectEditBtn.addEventListener('click', () => openPopup('select', 'セレクト色を編集', buildSelectEditPopupContent));
+
+  // ========================================================================
+  // 画像インポート
+  // 読み込んだ画像を「新しいキャンバスそのもの」として扱う。
+  // 既存のresizeAllCanvases()は現在の描画を保持する前提の処理なので流用せず、
+  // 破棄前提の専用処理として分ける(既存のサイズ変更経路は変更しない)。
+  // ========================================================================
+  const IMPORT_MAX_SIZE = Math.max(...CANVAS_SIZE_PRESETS
+    .filter(p => p.width !== null).map(p => p.width)); // = 1024
+
+  function applyImportedImage(img) {
+    // 縦横比を保ったまま最大サイズ以内に収める。
+    // 小さい画像は引き伸ばさない(拡大率は1倍を上限とする)。
+    const scale = Math.min(1, IMPORT_MAX_SIZE / img.width, IMPORT_MAX_SIZE / img.height);
+    const cssW = Math.max(1, Math.round(img.width * scale));
+    const cssH = Math.max(1, Math.round(img.height * scale));
+
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    layers.forEach((layer, i) => {
+      layer.canvas.width = cssW * dpr;
+      layer.canvas.height = cssH * dpr;
+      layer.canvas.style.width = cssW + 'px';
+      layer.canvas.style.height = cssH + 'px';
+      layer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layer.ctx.lineCap = 'round';
+      layer.ctx.lineJoin = 'round';
+      layer.ctx.imageSmoothingEnabled = false;
+      // インポート前の内容は破棄する(要求どおり)。履歴も引き継がない。
+      layer.undoStack = [];
+      layer.redoStack = [];
+      // 表示状態と不透明度は初期状態に戻す(単一レイヤーとして見せるため)
+      layer.visible = true;
+      layer.canvas.style.visibility = 'visible';
+      layer.canvas.style.opacity = '';
+      // 画像は最背面レイヤーにのみ描く = 実質的に単一レイヤー扱い
+      if (i === 0) {
+        layer.ctx.drawImage(img, 0, 0, cssW, cssH);
+      }
+    });
+
+    // 画像を描いたレイヤーを選択状態にする
+    activeLayerIndex = 0;
+
+    paper.style.width = cssW + 'px';
+    paper.style.height = cssH + 'px';
+    stage.style.width = cssW + 'px';
+    stage.style.height = cssH + 'px';
+
+    // 以後のリサイズで勝手に画面サイズへ引き伸ばされないよう、
+    // 「画面に合わせる」ではなくインポート寸法を保持する状態にする
+    importedCanvasSize = { width: cssW, height: cssH };
+
+    // キャンバス全体が見えるようズームを初期化する
+    zoom = 1; panX = 0; panY = 0;
+    clampPan();
+    applyZoom();
+    updateCanvasSizeLabel();
+    refreshPopupIfType('layers');
+  }
+
+  function importImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => applyImportedImage(img);
+      img.onerror = () => alert('画像を読み込めませんでした。別のファイルでお試しください。');
+      img.src = reader.result;
+    };
+    reader.onerror = () => alert('ファイルを読み込めませんでした。');
+    reader.readAsDataURL(file);
+  }
+
+  function buildImportPopupContent(container) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:12px;';
+    note.textContent = '画像をインポートすると、現在キャンバスに描いている内容は消えます。続けますか？';
+    container.appendChild(note);
+
+    const detail = document.createElement('div');
+    detail.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;';
+    detail.textContent = `読み込んだ画像がそのまま新しいキャンバスになります。縦横比は保ったまま、最大 ${IMPORT_MAX_SIZE}px 以内に収まるよう縮小します。`;
+    container.appendChild(detail);
+
+    const row = document.createElement('div');
+    row.className = 'popup-row';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'icon-btn pen-btn';
+    cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', closePopup);
+
+    // iOSでは <input type="file"> を直接押せないことがあるため label 経由で開く
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return; // ファイル選択をキャンセルした場合は何も変更しない
+      closePopup();
+      importImageFile(file);
+    });
+
+    const importLabel = document.createElement('label');
+    importLabel.className = 'icon-btn pen-btn';
+    importLabel.textContent = 'インポート';
+    importLabel.style.cursor = 'pointer';
+    importLabel.appendChild(fileInput);
+
+    row.appendChild(cancelBtn);
+    row.appendChild(importLabel);
+    container.appendChild(row);
+  }
+
+  tabImportBtn.addEventListener('click', () => openPopup('import', '画像をインポート', buildImportPopupContent));
+
   // ---- 一部固定 設定ポップアップ ----
   function buildFixPopupContent(container) {
     const note = document.createElement('div');
@@ -1093,6 +1519,19 @@
     if (m) return { h: Number(m[1]), s: Number(m[2]), l: Number(m[3]) };
     return { h: 0, s: 0, l: 50 };
   }
+  // 入力されたカラーコードを #RRGGBB に正規化する。
+  // 「#」の有無、3桁の短縮形、大文字小文字、前後の空白を許容し、
+  // 不正な文字列の場合は null を返す(呼び出し側で入力途中と区別できるように)。
+  function normalizeHex(str) {
+    if (typeof str !== 'string') return null;
+    let s = str.trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(s)) {
+      s = s.split('').map(ch => ch + ch).join(''); // #abc → #aabbcc
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+    return '#' + s.toLowerCase();
+  }
+
   function hexToHsl(hex) {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
     const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -1203,14 +1642,15 @@
     drawSLGradient(slCanvas, hsl.h, hsl.s, hsl.l);
   }
 
-  document.getElementById('fix-btn')
-    .addEventListener('click', () => openPopup('fix', '色相を固定', buildFixPopupContent));
+  fixBtn.addEventListener('click', () => openPopup('fix', '色相を固定', buildFixPopupContent));
 
   // 常時表示のミニ色相環・SLグラデーション。詳細ポップアップと同じ描画関数を使うことで
   // H/S/Lの計算結果が常時表示・詳細表示のあいだでズレないようにする。
   function updateMiniColorWidgets() {
     if (!currentColor) return;
     const hsl = parseColorToHSL(currentColor);
+    // 非表示中は描画しても見えないため処理を省く(色相環ポップアップ側は別途描画)
+    if (!showMiniColorRow) return;
     drawHueWheel(miniWheelCanvas, currentPaletteColors, currentColor);
     drawSLGradient(miniSLCanvas, hsl.h, hsl.s, hsl.l);
   }
@@ -1654,7 +2094,37 @@
 
   let useDefaultPalette = false;
 
+  // ========================================================================
+  // パレットモード: ランダム生成 or ユーザーによるセレクト
+  // ========================================================================
+  let paletteMode = 'random'; // 'random' | 'select'
+  // セレクトに入る直前のパレット状態。解除時に再抽選せずここへ戻す。
+  let paletteStateBeforeSelect = null; // null | {colors, selected, modeLabel}
+  // セレクト色はユーザー指定値をそのまま保持する(H/S/Lの再計算はしない)
+  let selectColors = ['#e63946'];
+
+  // ========================================================================
+  // パレットヒストリー: 「抽選」で確定したパレットだけを最大5件保持する。
+  // セレクトモードでの確定や定番パレットは抽選ではないため対象外。
+  // アプリ内メモリのみに保持し、永続化はしない(要求どおり)。
+  // ========================================================================
+  const PALETTE_HISTORY_MAX = 5;
+  let paletteHistory = []; // 先頭が最新。[{colors:[...]}]
+
+  function pushPaletteHistory(colors) {
+    // 同一構成でも要求どおり別履歴として積む(参照ではなく値のコピーを保存)
+    paletteHistory.unshift({ colors: colors.slice() });
+    if (paletteHistory.length > PALETTE_HISTORY_MAX) paletteHistory.length = PALETTE_HISTORY_MAX;
+  }
+
   function applyPalette() {
+    if (paletteMode === 'select') {
+      // セレクトモード: ユーザー指定色をそのまま使う。色相ルールやランダム
+      // レンジ補正は一切適用しない(要求どおり値を変更しない)。
+      modeLabel.textContent = `セレクト(${selectColors.length}色)`;
+      buildSwatches(selectColors.slice());
+      return;
+    }
     if (useDefaultPalette) {
       modeLabel.textContent = '定番パレット';
       shuffleBtn.style.display = 'none';
@@ -1668,9 +2138,61 @@
       shuffleBtn.style.display = 'flex';
       colorTypeSelect.disabled = false;
       hueTypeSelect.disabled = false;
-      buildSwatches(generatePalette(colorTypeKey, hueTypeKey));
+      const colors = generatePalette(colorTypeKey, hueTypeKey);
+      buildSwatches(colors);
+      // 「抽選によって生成された」パレットのみ履歴の対象(定番・セレクトは対象外)
+      pushPaletteHistory(colors);
     }
   }
+
+  // ---- パレットモード(ランダム/セレクト)の切り替え ----
+  function applyPaletteModeUI() {
+    const isSelect = paletteMode === 'select';
+    paletteModeToggle.classList.toggle('active', isSelect);
+    paletteModeToggle.textContent = isSelect ? 'セレクト中' : 'セレクト';
+    // ランダム生成専用のUIをまとめて無効化する
+    colorTypeSelect.disabled = isSelect || useDefaultPalette;
+    hueTypeSelect.disabled = isSelect || useDefaultPalette;
+    shuffleBtn.disabled = isSelect;
+    fixBtn.disabled = isSelect;
+    defaultToggleBtn.disabled = isSelect;
+    [colorTypeSelect, hueTypeSelect, shuffleBtn, fixBtn, defaultToggleBtn].forEach(el => {
+      el.style.opacity = (isSelect && el !== paletteModeToggle) ? '0.4' : '';
+      el.style.pointerEvents = (isSelect && el !== paletteModeToggle) ? 'none' : '';
+    });
+    // ✏️編集はセレクト時のみ出す(🎨背景の左に並ぶ)
+    selectEditBtn.style.display = isSelect ? 'flex' : 'none';
+  }
+
+  // セレクトに入る直前のパレット状態。解除時に再抽選せずここへ戻す。
+
+  paletteModeToggle.addEventListener('click', () => {
+    if (paletteMode === 'random') {
+      // セレクトへ入る: 現在のパレットと選択色を退避しておく
+      paletteStateBeforeSelect = {
+        colors: currentPaletteColors.slice(),
+        selected: currentColor,
+        modeLabel: modeLabel.textContent,
+      };
+      paletteMode = 'select';
+      applyPaletteModeUI();
+      applyPalette();
+      return;
+    }
+    // セレクトを解除: 再抽選せず、入る前のパレットと選択色をそのまま戻す
+    paletteMode = 'random';
+    applyPaletteModeUI();
+    if (paletteStateBeforeSelect && paletteStateBeforeSelect.colors.length) {
+      buildSwatches(paletteStateBeforeSelect.colors.slice());
+      // buildSwatches は先頭色を選ぶので、退避しておいた選択色に戻す
+      const prev = paletteStateBeforeSelect.selected;
+      if (prev && paletteStateBeforeSelect.colors.includes(prev)) selectColorByValue(prev);
+      modeLabel.textContent = paletteStateBeforeSelect.modeLabel;
+      paletteStateBeforeSelect = null;
+    } else {
+      applyPalette();
+    }
+  });
 
   colorTypeSelect.addEventListener('change', applyPalette);
   hueTypeSelect.addEventListener('change', applyPalette);
@@ -1688,6 +2210,8 @@
     if (tool === 'pen' || tool === 'pen2') {
       penToolBeforeEraser = tool;
     }
+    // スポイト待機中だけキャンバス以外を暗くし、案内を出す
+    document.body.classList.toggle('eyedropping', tool === 'eyedropper');
     penBtns.forEach(b => b.classList.toggle('active', b.dataset.pen === tool));
     eraserBtn.classList.toggle('active', tool === 'eraser');
     bucketBtn.classList.toggle('active', tool === 'bucket');
@@ -1707,7 +2231,9 @@
   function updateCanvasSizeLabel() {
     const preset = CANVAS_SIZE_PRESETS[selectedCanvasSizeIndex];
     const label = document.getElementById('canvas-size-label');
-    if (preset.width === null) {
+    if (preset.width === null && importedCanvasSize) {
+      label.textContent = `${importedCanvasSize.width}×${importedCanvasSize.height}`;
+    } else if (preset.width === null) {
       label.textContent = '';
     } else {
       label.textContent = `${preset.width}×${preset.height}`;
@@ -1722,6 +2248,10 @@
     if (preset.width !== null) {
       cssW = preset.width;
       cssH = preset.height;
+    } else if (importedCanvasSize) {
+      // インポートした画像の寸法を維持する(画面サイズに引き伸ばさない)
+      cssW = importedCanvasSize.width;
+      cssH = importedCanvasSize.height;
     } else {
       const rect = wrap.getBoundingClientRect();
       cssW = Math.round(rect.width);
@@ -1929,6 +2459,36 @@
   }
 
   // ---------- 描画 / 単指パン(ツール選択時) ----------
+  // ---------- スポイト(セレクトモード用) ----------
+  // 見た目どおりの色を拾うため、レイヤーを個別に見るのではなく
+  // 既存のmergeCanvas()(不透明度・背景色・重なり順を反映済み)から読み取る。
+  function pickColorFromCanvas(e) {
+    const p = getPos(e); // CSS座標(zoom/pan考慮済み、既存のgetPosをそのまま再利用)
+    const merged = mergeCanvas();
+    const px = Math.floor(p.x * dpr);
+    const py = Math.floor(p.y * dpr);
+    if (px < 0 || py < 0 || px >= merged.width || py >= merged.height) return;
+    const mctx = merged.getContext('2d');
+    const data = mctx.getImageData(px, py, 1, 1).data;
+    const hex = '#' + [data[0], data[1], data[2]]
+      .map(v => v.toString(16).padStart(2, '0')).join('');
+
+    if (selectEditingIndex !== null && selectColors[selectEditingIndex] !== undefined) {
+      selectColors[selectEditingIndex] = hex;
+      selectEditingIndex = null;
+      setTool(penToolBeforeEraser); // スポイト後は元のペンツールに戻す
+      if (paletteMode === 'select') applyPalette();
+      openPopup('select', 'セレクト色を編集', buildSelectEditPopupContent);
+    }
+  }
+
+  // スポイトをやめて元のツールに戻す
+  document.getElementById('eyedrop-cancel').addEventListener('click', () => {
+    selectEditingIndex = null;
+    setTool(penToolBeforeEraser);
+    openPopup('select', 'セレクト色を編集', buildSelectEditPopupContent);
+  });
+
   function start(e) {
     e.preventDefault();
     const t = e.touches ? e.touches[0] : e;
@@ -1936,6 +2496,12 @@
     if (currentTool === 'pan') {
       panStart = { x: t.clientX, y: t.clientY, panX, panY };
       drawing = true;
+      return;
+    }
+
+    if (currentTool === 'eyedropper') {
+      pickColorFromCanvas(e);
+      drawing = false;
       return;
     }
 
@@ -1999,6 +2565,7 @@
       return;
     }
     if (currentTool === 'bucket') return; // バケツはタップのみ
+    if (currentTool === 'eyedropper') return; // スポイトもタップのみ(ドラッグで描画させない)
     if (!drawing) return;
     e.preventDefault();
     const p = getPos(e);
@@ -2585,6 +3152,8 @@
   resizeAllCanvases();
   updateCanvasSizeLabel();
   applyDefaultButtonVisibility();
+  applyPaletteModeUI();
+  applyMiniColorRowVisibility();
   applyPalette();
   applyZoom();
   setTool('pen');
