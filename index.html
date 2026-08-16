@@ -2874,6 +2874,9 @@
   // 色計算は一切やり直さず、画面に表示中の currentPaletteColors と colorSchemes を
   // そのまま描画する。別ロジックを持つと画面と出力で色が食い違うため。
   const EXPORT_W = 1080;
+  // 共有シート経由でX等に渡すテキスト。titleは見出しにしか使われないアプリが多く、
+  // 投稿本文に反映されるのはtextの方なのでこちらにハッシュタグを入れる。
+  const SHARE_TEXT = '#ColorCage で作った配色';
   let exportMode = 'both'; // 'palette' | 'image' | 'both'
   let exportPaletteSize = 'compact'; // 'standard' | 'compact'
 
@@ -3153,7 +3156,7 @@
     saveOut.addEventListener('click', () => {
       // 準備できていれば共有シートを直接開く(ここで await を挟まない)
       if (exportFile) {
-        navigator.share({ files: [exportFile], title: 'Color Cage' })
+        navigator.share({ files: [exportFile], title: 'Color Cage', text: SHARE_TEXT })
           .catch((err) => {
             if (err && err.name === 'AbortError') return; // ユーザーが閉じただけ
             exportCanvas(out); // 共有が使えない場合は従来の導線へ
@@ -3212,7 +3215,7 @@
 
       if (canUseShare) {
         try {
-          await navigator.share({ files: [file], title: 'Color Cage' });
+          await navigator.share({ files: [file], title: 'Color Cage', text: SHARE_TEXT });
           return;
         } catch (err) {
           if (err && err.name === 'AbortError') return;
